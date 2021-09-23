@@ -44,18 +44,30 @@ export default function Home() {
     // startPlayback();
   }, []);
 
-  const durations = [0.25, 0.5, 1];
+  const durations = [0.25, 0.5, 0.5, 1, 1, 2];
   const notes = ["A4", "B4", "C4", "D4", "E4", "F4", "G4"];
+  const noteArpeggios = [
+    ["C2", "D#2", "G2", "C3", "G2", "D#2"],
+    ["B1", "D2", "G2", "B2", "G2", "D2"],
+    ["A#1", "D2", "F2", "A#2", "F2", "D2"],
+    ["A1", "C2", "F2", "A2", "F2", "C2"],
+    ["G#1", "C2", "D#2", "G#2", "D#2", "C2"],
+    ["G1", "C2", "D#2", "G2", "D#2", "C2"],
+    ["F#1", "C2", "D#2", "F#2", "D#2", "C2"],
+    ["G1", "C2", "D2", "G2", "D2", "B1"],
+  ];
+
   const chords = [
     [],
-    ["C4", "E4", "G4"],
-    ["D4", "F4", "A4"],
-    ["E4", "G4", "B4"],
-    ["F4", "A4", "C4"],
-    ["G4", "B4", "D4"],
-    ["A4", "C4", "E4"],
-    ["B4", "D4", "F4"],
+    ["C3", "E3", "G3"],
+    ["D3", "F3", "A3"],
+    ["E3", "G3", "B3"],
+    ["F3", "A3", "C3"],
+    ["G3", "B3", "D3"],
+    ["A3", "C3", "E3"],
+    ["B3", "D3", "F3"],
   ];
+
   const chordRules = {
     1: [1, 2, 3, 4, 5, 6, 7],
     2: [5, 7],
@@ -66,29 +78,62 @@ export default function Home() {
     7: [1],
   };
 
+  // instruments
+  // const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+  // use sampler below to use diff instruments
+  // https://github.com/nbrosowsky/tonejs-instruments/tree/master/samples
+
   const startPlayback = () => {
     Tone.start();
+    Tone.reverb(10);
 
-    const now = Tone.now();
-    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+    const sampler = new Tone.Sampler({
+      urls: {
+        C4: "C4.mp3",
+        "D#4": "Ds4.mp3",
+        "F#4": "Fs4.mp3",
+        A4: "A4.mp3",
+      },
+      release: 1,
+      baseUrl: "https://tonejs.github.io/audio/salamander/",
+    }).toDestination();
 
-    let when = now;
-    let duration = durations[getDeterminedInt(durations.length)];
-    let chordIdx = 2;
+    Tone.loaded().then(() => {
+      const now = Tone.now();
+      // const distortion = new Tone.Distortion(0.4).toDestination();
+      // sampler.connect(distortion);
 
-    let chordText = "";
-    for (let i = 0; i < 50; i++) {
-      chordIdx = getNextChord(chordIdx);
-      duration = durations[getDeterminedInt(durations.length)];
-      const nextChord = chords[chordIdx];
-      synth.triggerAttackRelease(nextChord, duration, when);
-      console.log(chords[chordIdx], duration, when);
-      when = when + duration;
+      // for (let i = 0; i < 10; i++) {
+      //   const noteIdx = getDeterminedInt(noteArpeggios.length);
+      //   const randomArpeggio = noteArpeggios[noteIdx];
+      //   for (let z = 0; z < randomArpeggio.length; z++) {
+      //     console.log(randomArpeggio[z], now + (i * 10 + z) * 0.25);
+      //     sampler.triggerAttackRelease(
+      //       randomArpeggio[z],
+      //       0.5,
+      //       now + (i * 10 + z) * 0.25
+      //     );
+      //   }
+      // }
 
-      chordText += `<p>${nextChord.join(",")}</p>`;
-    }
+      let when = now;
+      let duration = durations[getDeterminedInt(durations.length)];
+      let chordIdx = 2;
 
-    setChordProgression(chordText);
+      let chordText = "";
+      for (let i = 0; i < 10; i++) {
+        chordIdx = getNextChord(chordIdx);
+        duration = durations[getDeterminedInt(durations.length)];
+        const nextChord = chords[chordIdx];
+        sampler.triggerAttackRelease(nextChord, duration, when);
+        console.log(chords[chordIdx], duration, when);
+        when = when + duration;
+
+        chordText += `<p>${nextChord.join(",")}</p>`;
+      }
+
+      setChordProgression(chordText);
+    });
   };
 
   const getDeterminedInt = (max) => {
