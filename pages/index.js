@@ -15,13 +15,20 @@ export default function Home() {
   const seeder = xmur3(seed);
   const rand = sfc32(seeder(), seeder(), seeder(), seeder());
 
-  const keyLetter = "D";
+  const randomInt = (max) => {
+    // max number of options
+    // ex: if max == 2, then options are 0, 1
+    const randomNum = rand();
+    return Math.floor(randomNum * max);
+  };
+
+  const keyLetter = "C";
   const key = Key.majorKey(keyLetter);
   const octave = 4;
   const durations = ["4n", "8n", "16n"];
   const scale = key.scale;
   const chords = key.chords;
-  console.log(key);
+  console.log(`We are in key:`, key);
 
   const chordRules = {
     1: [1, 2, 3, 4, 5, 6, 7],
@@ -37,6 +44,19 @@ export default function Home() {
   // const synth = new Tone.PolySynth(Tone.Synth).toDestination();
   // use sampler below to use diff instruments
   // https://github.com/nbrosowsky/tonejs-instruments/tree/master/samples
+
+  const getNextNote = (currentNote) => {
+    if (!currentNote) return keyLetter;
+
+    const currentIndex = scale.indexOf(currentNote);
+    const isPositive = randomInt(2) === 1;
+
+    let nextIndex = currentIndex + randomInt(3) * (isPositive ? 1 : -1);
+
+    if (nextIndex >= scale.length || nextIndex < 0) nextIndex = currentIndex;
+    console.log(nextIndex, scale[nextIndex]);
+    return scale[nextIndex];
+  };
 
   const startPlayback = () => {
     Tone.start();
@@ -81,30 +101,38 @@ export default function Home() {
     mixer.connect(reverb);
     reverb.toDestination();
 
+    let noteLetter;
     let prevNote;
     let chordIdx = 2;
-    Tone.Transport.bpm.value = 60;
+    Tone.Transport.bpm.value = 30;
 
+    let ticks = 0;
     Tone.loaded().then(() => {
       const loop = new Tone.Loop((time) => {
-        const chord = Chord.get(chords[randomInt(chords.length)]);
+        ticks++;
+
+        noteLetter = getNextNote(noteLetter);
+        let note = noteLetter + "4";
+
+        const scaleNotes = Scale.get(`${noteLetter} major`).notes;
+
+        const oneFour = [0, 3][randomInt(2)];
+        let chord = Chord.get(scaleNotes[oneFour]);
         let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
+        // console.log(noteLetter, chordNotes);
 
-        let chordScales = Chord.chordScales(chord.name);
-        // let chordScaleNotes = Scale.get(`${keyLetter} ${chordScales[0]}`)
-        //     .notes;
-        let chordScaleNotes = Scale.get(`${keyLetter} bebop major`).notes;
-        let note;
-        if (chordScaleNotes.length > 0) {
-          note = chordScaleNotes[randomInt(chordScaleNotes.length)] + octave;
-          console.log(note);
+        const playNote = randomInt(10) > 2;
+
+        if (ticks % 4 === 0) {
+          console.log(ticks);
+          sampler2.triggerAttackRelease(chordNotes, "1n", time);
+        } else {
+          if (playNote && randomInt(10) > 8) {
+            sampler2.triggerAttackRelease(chordNotes, "1n", time);
+          }
         }
 
-        if (randomInt(10) > 6) {
-          sampler2.triggerAttackRelease(chordNotes, "4n", time);
-        }
-
-        if (randomInt(10) > 2 && note) {
+        if (playNote) {
           sampler.triggerAttackRelease(
             note,
             durations[randomInt(durations.length)],
@@ -119,22 +147,6 @@ export default function Home() {
       const wave = new Tone.Waveform();
       Tone.Transport.start();
     });
-  };
-
-  const randomInt = (max) => {
-    const randomNum = rand();
-    return Math.floor(randomNum * max);
-  };
-
-  const getNextChord = (currChordIdx) => {
-    const chordOptions = chordRules[currChordIdx];
-    const nextChordIdx = chordOptions[randomInt(chordOptions.length)];
-    return nextChordIdx;
-  };
-
-  const getNote = () => {
-    const randomNum = randomInt(scale.length);
-    return scale[randomNum];
   };
 
   const pausePlayback = () => {
