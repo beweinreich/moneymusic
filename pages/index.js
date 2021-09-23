@@ -9,7 +9,7 @@ import { Scale, Chord, Key } from "@tonaljs/tonal";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [seed, setSeed] = useState("apples");
+  const [seed, setSeed] = useState("doggy");
   const [playingText, setPlayingText] = useState("");
 
   const seeder = xmur3(seed);
@@ -22,13 +22,102 @@ export default function Home() {
     return Math.floor(randomNum * max);
   };
 
-  const keyLetter = "C";
+  const keys = ["A", "B", "C", "D", "E", "F", "G"];
+  const keyLetter = keys[randomInt(keys.length)];
   const key = Key.majorKey(keyLetter);
-  const octave = 4;
-  const durations = ["4n", "8n", "16n"];
+  const durations = ["4n", "8n", "16n", "32n", "32n", "32n"];
   const scale = key.scale;
   const chords = key.chords;
   console.log(`We are in key:`, key);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    Tone.Transport.cancel();
+
+    const sampler = new Tone.Sampler({
+      urls: {
+        C4: "C4.mp3",
+        "D#4": "Ds4.mp3",
+        "F#4": "Fs4.mp3",
+        A4: "A4.mp3",
+      },
+      release: 1,
+      baseUrl: "https://tonejs.github.io/audio/salamander/",
+    }).toDestination();
+
+    const sampler2 = new Tone.Sampler({
+      urls: {
+        C4: "C4.mp3",
+        "D#4": "Ds4.mp3",
+        "F#4": "Fs4.mp3",
+        A4: "A4.mp3",
+      },
+      release: 1,
+      baseUrl: "https://tonejs.github.io/audio/salamander/",
+    }).toDestination();
+
+    sampler.volume.value = -10;
+    sampler2.volume.value = -10;
+    const mixer = new Tone.Gain();
+    const reverb = new Tone.Reverb({
+      wet: 0.3,
+      decay: 30,
+    });
+
+    // setup the audio chain:
+    // synth(s) -> mixer -> reverb -> Tone.Master
+    sampler.connect(mixer);
+    sampler2.connect(mixer);
+    mixer.connect(reverb);
+    reverb.toDestination();
+
+    let noteLetter;
+    let octave = 4;
+
+    Tone.Transport.bpm.value = 28;
+
+    let ticks = 0;
+    Tone.loaded().then(() => {
+      const loop = new Tone.Loop((time) => {
+        ticks++;
+        console.log(ticks);
+
+        noteLetter = getNextNote(noteLetter);
+        let note = noteLetter + octave;
+
+        const scaleNotes = Scale.get(`${noteLetter} major`).notes;
+
+        const oneFour = [0, 3][randomInt(2)];
+        let chord = Chord.get(scaleNotes[oneFour]);
+        let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
+
+        const playNote = randomInt(10) > 2;
+
+        if (ticks % 8 === 0) {
+          if (randomInt(10) > 2) {
+            // sampler2.triggerAttackRelease(chordNotes, "1n", time);
+            chordNotes.map((note, idx) =>
+              sampler2.triggerAttackRelease(note, "1n", time + idx)
+            );
+          }
+        } else {
+          if (playNote && randomInt(10) > 8) {
+            sampler2.triggerAttackRelease(chordNotes, "1n", time);
+          }
+        }
+
+        if (playNote) {
+          sampler.triggerAttackRelease(
+            note,
+            durations[randomInt(durations.length)],
+            time
+          );
+        }
+      }, "32n");
+
+      loop.start();
+    });
+  }, [isPlaying]);
 
   const chordRules = {
     1: [1, 2, 3, 4, 5, 6, 7],
@@ -64,89 +153,7 @@ export default function Home() {
     if (isPlaying) return;
     setIsPlaying(true);
 
-    const sampler = new Tone.Sampler({
-      urls: {
-        C4: "C4.mp3",
-        "D#4": "Ds4.mp3",
-        "F#4": "Fs4.mp3",
-        A4: "A4.mp3",
-      },
-      release: 1,
-      baseUrl: "https://tonejs.github.io/audio/salamander/",
-    }).toDestination();
-
-    const sampler2 = new Tone.Sampler({
-      urls: {
-        C4: "C4.mp3",
-        "D#4": "Ds4.mp3",
-        "F#4": "Fs4.mp3",
-        A4: "A4.mp3",
-      },
-      release: 1,
-      baseUrl: "https://tonejs.github.io/audio/salamander/",
-    }).toDestination();
-
-    sampler.volume.value = -10;
-    sampler2.volume.value = -10;
-    const mixer = new Tone.Gain();
-    const reverb = new Tone.Reverb({
-      wet: 0.3, // half dry, half wet mix
-      decay: 30, // decay time in seconds
-    });
-
-    // setup the audio chain:
-    // synth(s) -> mixer -> reverb -> Tone.Master
-    sampler.connect(mixer);
-    sampler2.connect(mixer);
-    mixer.connect(reverb);
-    reverb.toDestination();
-
-    let noteLetter;
-    let prevNote;
-    let chordIdx = 2;
-    Tone.Transport.bpm.value = 30;
-
-    let ticks = 0;
-    Tone.loaded().then(() => {
-      const loop = new Tone.Loop((time) => {
-        ticks++;
-
-        noteLetter = getNextNote(noteLetter);
-        let note = noteLetter + "4";
-
-        const scaleNotes = Scale.get(`${noteLetter} major`).notes;
-
-        const oneFour = [0, 3][randomInt(2)];
-        let chord = Chord.get(scaleNotes[oneFour]);
-        let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
-        // console.log(noteLetter, chordNotes);
-
-        const playNote = randomInt(10) > 2;
-
-        if (ticks % 4 === 0) {
-          console.log(ticks);
-          sampler2.triggerAttackRelease(chordNotes, "1n", time);
-        } else {
-          if (playNote && randomInt(10) > 8) {
-            sampler2.triggerAttackRelease(chordNotes, "1n", time);
-          }
-        }
-
-        if (playNote) {
-          sampler.triggerAttackRelease(
-            note,
-            durations[randomInt(durations.length)],
-            time
-          );
-        }
-        prevNote = note;
-      }, "16n");
-
-      loop.start();
-
-      const wave = new Tone.Waveform();
-      Tone.Transport.start();
-    });
+    Tone.Transport.start();
   };
 
   const pausePlayback = () => {
@@ -169,9 +176,9 @@ export default function Home() {
       />
       <p />
       <button onClick={startPlayback}>Play</button>
-      <button onClick={pausePlayback}>Pause</button>
+      <button onClick={pausePlayback}>Stop</button>
       <p />
-      <p>Chords</p>
+      <p>In the key of {keyLetter}</p>
       <div
         dangerouslySetInnerHTML={{ __html: playingText }}
         style={{
