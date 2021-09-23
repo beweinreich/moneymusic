@@ -34,6 +34,7 @@ function sfc32(a, b, c, d) {
 }
 
 export default function Home() {
+  const [isPlaying, setIsPlaying] = useState(false);
   const [seed, setSeed] = useState("apples");
   const [chordProgression, setChordProgression] = useState("");
 
@@ -44,7 +45,7 @@ export default function Home() {
     // startPlayback();
   }, []);
 
-  const durations = [0.25, 0.5, 0.5, 1, 1, 2];
+  const durations = ["4n", "8n", "16n"];
   const notes = ["A4", "B4", "C4", "D4", "E4", "F4", "G4"];
   const noteArpeggios = [
     ["C2", "D#2", "G2", "C3", "G2", "D#2"],
@@ -86,6 +87,9 @@ export default function Home() {
   const startPlayback = () => {
     Tone.start();
 
+    if (isPlaying) return;
+    setIsPlaying(true);
+
     const sampler = new Tone.Sampler({
       urls: {
         C4: "C4.mp3",
@@ -97,13 +101,74 @@ export default function Home() {
       baseUrl: "https://tonejs.github.io/audio/salamander/",
     }).toDestination();
 
+    const sampler2 = new Tone.Sampler({
+      urls: {
+        C4: "C4.mp3",
+        "D#4": "Ds4.mp3",
+        "F#4": "Fs4.mp3",
+        A4: "A4.mp3",
+      },
+      release: 1,
+      baseUrl: "https://tonejs.github.io/audio/salamander/",
+    }).toDestination();
+
+    sampler.volume.value = -10;
+    sampler2.volume.value = -10;
+    const mixer = new Tone.Gain();
+    const reverb = new Tone.Reverb({
+      wet: 0.3, // half dry, half wet mix
+      decay: 30, // decay time in seconds
+    });
+
+    // setup the audio chain:
+    // synth(s) -> mixer -> reverb -> Tone.Master
+    sampler.connect(mixer);
+    sampler2.connect(mixer);
+    mixer.connect(reverb);
+    reverb.toDestination();
+
+    let prevNote;
+    let chordIdx = 2;
+    Tone.Transport.bpm.value = 60;
+
     Tone.loaded().then(() => {
-      const now = Tone.now();
+      const loop = new Tone.Loop((time) => {
+        // let n = noise(frameCount * 0.1);
+        // let i = floor(map(n, 0, 1, 0, scale.length)); // floor rounds down
+
+        chordIdx = getNextChord(chordIdx);
+        const nextChord = chords[chordIdx];
+
+        let note = notes[randomInt(notes.length)];
+        let note2 = nextChord;
+
+        if (randomInt(10) > 6) {
+          sampler2.triggerAttackRelease(note2, "4n", time);
+        }
+
+        if (randomInt(10) > 2) {
+          sampler.triggerAttackRelease(
+            note,
+            durations[randomInt(durations.length)],
+            time
+          );
+        }
+        prevNote = note;
+      }, "16n"); // '16n' here sets the speed of our loop -- every 16th note
+      // Start the loop
+      loop.start();
+
+      const wave = new Tone.Waveform();
+      // Tone.Master.connect(wave);
+
+      // Tone.Master.volume.value = 0.1;
+      Tone.Transport.start();
+
       // const distortion = new Tone.Distortion(0.4).toDestination();
       // sampler.connect(distortion);
 
       // for (let i = 0; i < 10; i++) {
-      //   const noteIdx = getDeterminedInt(noteArpeggios.length);
+      //   const noteIdx = randomInt(noteArpeggios.length);
       //   const randomArpeggio = noteArpeggios[noteIdx];
       //   for (let z = 0; z < randomArpeggio.length; z++) {
       //     console.log(randomArpeggio[z], now + (i * 10 + z) * 0.25);
@@ -115,40 +180,46 @@ export default function Home() {
       //   }
       // }
 
-      let when = now;
-      let duration = durations[getDeterminedInt(durations.length)];
+      // const now = Tone.now();
+      // let when = now;
+      // let duration = durations[randomInt(durations.length)];
       let chordIdx = 2;
 
-      let chordText = "";
-      for (let i = 0; i < 100; i++) {
-        chordIdx = getNextChord(chordIdx);
-        duration = durations[getDeterminedInt(durations.length)];
-        const nextChord = chords[chordIdx];
-        sampler.triggerAttackRelease(nextChord, duration, when);
-        console.log(chords[chordIdx], duration, when);
-        when = when + duration;
+      // let chordText = "";
+      // for (let i = 0; i < 100; i++) {
+      chordIdx = getNextChord(chordIdx);
+      //   duration = durations[randomInt(durations.length)];
+      //   const nextChord = chords[chordIdx];
+      //   sampler.triggerAttackRelease(nextChord, duration, when);
+      //   console.log(chords[chordIdx], duration, when);
+      //   when = when + duration;
 
-        chordText += `<p>${nextChord.join(",")}</p>`;
-      }
+      //   chordText += `<p>${nextChord.join(",")}</p>`;
+      // }
 
-      setChordProgression(chordText);
+      // setChordProgression(chordText);
     });
   };
 
-  const getDeterminedInt = (max) => {
+  const randomInt = (max) => {
     const randomNum = rand();
     return Math.floor(randomNum * max);
   };
 
   const getNextChord = (currChordIdx) => {
     const chordOptions = chordRules[currChordIdx];
-    const nextChordIdx = chordOptions[getDeterminedInt(chordOptions.length)];
+    const nextChordIdx = chordOptions[randomInt(chordOptions.length)];
     return nextChordIdx;
   };
 
   const getNote = () => {
-    const randomNum = getDeterminedInt(notes.length);
+    const randomNum = randomInt(notes.length);
     return notes[randomNum];
+  };
+
+  const pausePlayback = () => {
+    Tone.Transport.stop();
+    setIsPlaying(false);
   };
 
   return (
@@ -166,6 +237,7 @@ export default function Home() {
       />
       <p />
       <button onClick={startPlayback}>Play</button>
+      <button onClick={pausePlayback}>Pause</button>
       <p />
       <p>Chords</p>
       <div
