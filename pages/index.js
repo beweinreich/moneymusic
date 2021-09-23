@@ -73,6 +73,7 @@ export default function Home() {
 
     let noteLetter;
     let octave = 4;
+    let rolling = false;
 
     Tone.Transport.bpm.value = 28;
 
@@ -80,7 +81,7 @@ export default function Home() {
     Tone.loaded().then(() => {
       const loop = new Tone.Loop((time) => {
         ticks++;
-        console.log(ticks);
+        // console.log(ticks);
 
         noteLetter = getNextNote(noteLetter);
         let note = noteLetter + octave;
@@ -93,16 +94,26 @@ export default function Home() {
 
         const playNote = randomInt(10) > 2;
 
-        if (ticks % 8 === 0) {
-          if (randomInt(10) > 2) {
-            // sampler2.triggerAttackRelease(chordNotes, "1n", time);
-            chordNotes.map((note, idx) =>
-              sampler2.triggerAttackRelease(note, "1n", time + idx)
-            );
+        if (ticks % 60 === 0) {
+          rolling = !rolling;
+        }
+
+        if (rolling) {
+          if (ticks % 4 === 0) {
+            chordNotes.map((note, idx) => {
+              const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
+              sampler2.triggerAttackRelease(note, "8n", time + timeOffset);
+            });
           }
         } else {
-          if (playNote && randomInt(10) > 8) {
-            sampler2.triggerAttackRelease(chordNotes, "1n", time);
+          if (ticks % 8 === 0) {
+            if (randomInt(10) > 2) {
+              sampler2.triggerAttackRelease(chordNotes, "1n", time);
+            }
+          } else {
+            if (playNote && randomInt(10) > 8) {
+              sampler2.triggerAttackRelease(chordNotes, "1n", time);
+            }
           }
         }
 
@@ -143,7 +154,6 @@ export default function Home() {
     let nextIndex = currentIndex + randomInt(3) * (isPositive ? 1 : -1);
 
     if (nextIndex >= scale.length || nextIndex < 0) nextIndex = currentIndex;
-    console.log(nextIndex, scale[nextIndex]);
     return scale[nextIndex];
   };
 
