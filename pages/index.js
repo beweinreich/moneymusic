@@ -120,7 +120,7 @@ export default function Home() {
       let chordIdx = 2;
 
       let chordText = "";
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 100; i++) {
         chordIdx = getNextChord(chordIdx);
         duration = durations[getDeterminedInt(durations.length)];
         const nextChord = chords[chordIdx];
