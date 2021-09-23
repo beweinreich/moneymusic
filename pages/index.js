@@ -85,7 +85,6 @@ export default function Home() {
 
   const startPlayback = () => {
     Tone.start();
-    Tone.reverb(10);
 
     const sampler = new Tone.Sampler({
       urls: {
