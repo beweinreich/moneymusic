@@ -5,69 +5,23 @@ import Head from "next/head";
 import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
-
-function xmur3(str) {
-  for (var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
-    (h = Math.imul(h ^ str.charCodeAt(i), 3432918353)),
-      (h = (h << 13) | (h >>> 19));
-  return function () {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    return (h ^= h >>> 16) >>> 0;
-  };
-}
-function sfc32(a, b, c, d) {
-  return function () {
-    a >>>= 0;
-    b >>>= 0;
-    c >>>= 0;
-    d >>>= 0;
-    var t = (a + b) | 0;
-    a = b ^ (b >>> 9);
-    b = (c + (c << 3)) | 0;
-    c = (c << 21) | (c >>> 11);
-    d = (d + 1) | 0;
-    t = (t + d) | 0;
-    c = (c + t) | 0;
-    return (t >>> 0) / 4294967296;
-  };
-}
+import { Scale, Chord, Key } from "@tonaljs/tonal";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [seed, setSeed] = useState("apples");
-  const [chordProgression, setChordProgression] = useState("");
+  const [playingText, setPlayingText] = useState("");
 
   const seeder = xmur3(seed);
   const rand = sfc32(seeder(), seeder(), seeder(), seeder());
 
-  useEffect(() => {
-    // startPlayback();
-  }, []);
-
+  const keyLetter = "D";
+  const key = Key.majorKey(keyLetter);
+  const octave = 4;
   const durations = ["4n", "8n", "16n"];
-  const notes = ["A4", "B4", "C4", "D4", "E4", "F4", "G4"];
-  const noteArpeggios = [
-    ["C2", "D#2", "G2", "C3", "G2", "D#2"],
-    ["B1", "D2", "G2", "B2", "G2", "D2"],
-    ["A#1", "D2", "F2", "A#2", "F2", "D2"],
-    ["A1", "C2", "F2", "A2", "F2", "C2"],
-    ["G#1", "C2", "D#2", "G#2", "D#2", "C2"],
-    ["G1", "C2", "D#2", "G2", "D#2", "C2"],
-    ["F#1", "C2", "D#2", "F#2", "D#2", "C2"],
-    ["G1", "C2", "D2", "G2", "D2", "B1"],
-  ];
-
-  const chords = [
-    [],
-    ["C3", "E3", "G3"],
-    ["D3", "F3", "A3"],
-    ["E3", "G3", "B3"],
-    ["F3", "A3", "C3"],
-    ["G3", "B3", "D3"],
-    ["A3", "C3", "E3"],
-    ["B3", "D3", "F3"],
-  ];
+  const scale = key.scale;
+  const chords = key.chords;
+  console.log(key);
 
   const chordRules = {
     1: [1, 2, 3, 4, 5, 6, 7],
@@ -133,20 +87,24 @@ export default function Home() {
 
     Tone.loaded().then(() => {
       const loop = new Tone.Loop((time) => {
-        // let n = noise(frameCount * 0.1);
-        // let i = floor(map(n, 0, 1, 0, scale.length)); // floor rounds down
+        const chord = Chord.get(chords[randomInt(chords.length)]);
+        let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
 
-        chordIdx = getNextChord(chordIdx);
-        const nextChord = chords[chordIdx];
-
-        let note = notes[randomInt(notes.length)];
-        let note2 = nextChord;
-
-        if (randomInt(10) > 6) {
-          sampler2.triggerAttackRelease(note2, "4n", time);
+        let chordScales = Chord.chordScales(chord.name);
+        // let chordScaleNotes = Scale.get(`${keyLetter} ${chordScales[0]}`)
+        //     .notes;
+        let chordScaleNotes = Scale.get(`${keyLetter} bebop major`).notes;
+        let note;
+        if (chordScaleNotes.length > 0) {
+          note = chordScaleNotes[randomInt(chordScaleNotes.length)] + octave;
+          console.log(note);
         }
 
-        if (randomInt(10) > 2) {
+        if (randomInt(10) > 6) {
+          sampler2.triggerAttackRelease(chordNotes, "4n", time);
+        }
+
+        if (randomInt(10) > 2 && note) {
           sampler.triggerAttackRelease(
             note,
             durations[randomInt(durations.length)],
@@ -154,50 +112,12 @@ export default function Home() {
           );
         }
         prevNote = note;
-      }, "16n"); // '16n' here sets the speed of our loop -- every 16th note
-      // Start the loop
+      }, "16n");
+
       loop.start();
 
       const wave = new Tone.Waveform();
-      // Tone.Master.connect(wave);
-
-      // Tone.Master.volume.value = 0.1;
       Tone.Transport.start();
-
-      // const distortion = new Tone.Distortion(0.4).toDestination();
-      // sampler.connect(distortion);
-
-      // for (let i = 0; i < 10; i++) {
-      //   const noteIdx = randomInt(noteArpeggios.length);
-      //   const randomArpeggio = noteArpeggios[noteIdx];
-      //   for (let z = 0; z < randomArpeggio.length; z++) {
-      //     console.log(randomArpeggio[z], now + (i * 10 + z) * 0.25);
-      //     sampler.triggerAttackRelease(
-      //       randomArpeggio[z],
-      //       0.5,
-      //       now + (i * 10 + z) * 0.25
-      //     );
-      //   }
-      // }
-
-      // const now = Tone.now();
-      // let when = now;
-      // let duration = durations[randomInt(durations.length)];
-      let chordIdx = 2;
-
-      // let chordText = "";
-      // for (let i = 0; i < 100; i++) {
-      chordIdx = getNextChord(chordIdx);
-      //   duration = durations[randomInt(durations.length)];
-      //   const nextChord = chords[chordIdx];
-      //   sampler.triggerAttackRelease(nextChord, duration, when);
-      //   console.log(chords[chordIdx], duration, when);
-      //   when = when + duration;
-
-      //   chordText += `<p>${nextChord.join(",")}</p>`;
-      // }
-
-      // setChordProgression(chordText);
     });
   };
 
@@ -213,8 +133,8 @@ export default function Home() {
   };
 
   const getNote = () => {
-    const randomNum = randomInt(notes.length);
-    return notes[randomNum];
+    const randomNum = randomInt(scale.length);
+    return scale[randomNum];
   };
 
   const pausePlayback = () => {
@@ -241,7 +161,7 @@ export default function Home() {
       <p />
       <p>Chords</p>
       <div
-        dangerouslySetInnerHTML={{ __html: chordProgression }}
+        dangerouslySetInnerHTML={{ __html: playingText }}
         style={{
           overflow: "scroll",
           height: 200,
@@ -254,4 +174,31 @@ export default function Home() {
       />
     </div>
   );
+}
+
+function xmur3(str) {
+  for (var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
+    (h = Math.imul(h ^ str.charCodeAt(i), 3432918353)),
+      (h = (h << 13) | (h >>> 19));
+  return function () {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+function sfc32(a, b, c, d) {
+  return function () {
+    a >>>= 0;
+    b >>>= 0;
+    c >>>= 0;
+    d >>>= 0;
+    var t = (a + b) | 0;
+    a = b ^ (b >>> 9);
+    b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11);
+    d = (d + 1) | 0;
+    t = (t + d) | 0;
+    c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  };
 }
