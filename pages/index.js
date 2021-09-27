@@ -73,10 +73,8 @@ export default function Home() {
         noteLetter = getNextNote(noteLetter);
         let note = noteLetter + octave;
 
-        const scaleNotes = Scale.get(`${noteLetter} major`).notes;
-
         const oneFour = [0, 3][randomInt(2)];
-        let chord = Chord.get(scaleNotes[oneFour]);
+        let chord = Chord.get(scale[oneFour]);
         let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
 
         const playNote = randomInt(10) > 2;

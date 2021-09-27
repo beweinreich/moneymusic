@@ -135,10 +135,33 @@ export default function Home() {
     Tone.loaded().then(() => {
       startLead();
       startDrums();
+      startBass();
       // startPiano();
       // startSynth();
     });
   }, [isPlaying]);
+
+  const startBass = () => {
+    let noteLetter;
+    let octave = 2;
+
+    let idx = 0;
+    new Tone.Loop((time) => {
+      noteLetter = getNextNoteLetter(idx);
+      const note = getNote(noteLetter, octave);
+      synthBass.triggerAttackRelease(note, "1n", time);
+      idx++;
+    }, "1n").start();
+  };
+
+  const getNextNoteLetter = (
+    currentIndex,
+    progression = ["C", "G", "F", "G"]
+  ) => {
+    const nextIndex = currentIndex % 4;
+    const noteLetter = progression[nextIndex];
+    return noteLetter;
+  };
 
   const startLead = () => {
     const synthC = new Tone.PolySynth(Tone.Synth, {
@@ -167,9 +190,11 @@ export default function Home() {
         const octaveAlt = idx < 3 ? octave : octave + 1;
         return `${note}${octaveAlt}`;
       });
-      synthC.triggerAttackRelease(chordNotes, "1n", time);
+      if (![6, 10, 15].includes(i)) {
+        synthC.triggerAttackRelease(chordNotes, "8n", time);
+      }
       i++;
-    }, "1n").start();
+    }, "8n").start();
   };
 
   const startDrums = () => {
