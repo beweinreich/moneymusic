@@ -60,7 +60,7 @@ export default function Home() {
 
     let noteLetter;
     let octave = 4;
-    let rolling = false;
+    let arping = true;
 
     Tone.Transport.bpm.value = 28;
 
@@ -80,11 +80,11 @@ export default function Home() {
         const playNote = randomInt(10) > 2;
 
         if (ticks % 40 === 0) {
-          rolling = !rolling;
+          arping = !arping;
         }
 
-        if (rolling) {
-          // some rolling on the chords
+        if (arping) {
+          // some arping on the chords
           if (ticks % 4 === 0) {
             chordNotes.map((note, idx) => {
               const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
@@ -104,8 +104,13 @@ export default function Home() {
           }
         }
 
-        if (rolling) {
+        if (arping) {
           if (ticks % 4 && playNote) {
+            // if we are "arpeggiating" pick one of the notes from the chord
+            // to avoid dissonance
+            note = chord.notes.map((note) => `${note}${octave}`)[
+              randomInt(chord.notes.length)
+            ];
             sampler.triggerAttackRelease(note, "8n", time);
           }
         } else {
