@@ -25,7 +25,7 @@ export default function Home() {
   const keys = ["A", "B", "C", "D", "E", "F", "G"];
   const keyLetter = keys[randomInt(keys.length)];
   const key = Key.majorKey(keyLetter);
-  const durations = ["4n", "8n", "16n", "32n", "32n", "32n"];
+  const durations = ["4n", "8n", "16n", "32n"];
   const scale = key.scale;
   const chords = key.chords;
   console.log(`We are in key:`, key);
@@ -116,7 +116,7 @@ export default function Home() {
         } else {
           if (playNote) {
             sampler.triggerAttackRelease(
-              note,
+              chordNotes[randomInt(chordNotes.length)],
               durations[randomInt(durations.length)],
               time
             );

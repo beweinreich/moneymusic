@@ -3,7 +3,7 @@ import Head from "next/head";
 import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
-import { Scale, Chord, Key } from "@tonaljs/tonal";
+import { Scale, Chord, Key, note } from "@tonaljs/tonal";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -23,8 +23,9 @@ export default function Home() {
   const keys = ["A", "B", "C", "D", "E", "F", "G"];
   const keyLetter = keys[randomInt(keys.length)];
   const key = Key.majorKey(keyLetter);
-  const durations = ["4n", "8n", "16n", "32n", "32n", "32n"];
+  const durations = ["4n", "8n", "16n", "32n"];
   const scale = key.scale;
+  const scaleNum = [null].concat(key.scale);
   const chords = key.chords;
   console.log(`We are in key:`, key);
 
@@ -74,7 +75,7 @@ export default function Home() {
 
     synthBass = new Tone.DuoSynth().toDestination();
     synthBass.vibratoAmount.value = 0.1;
-    synthBass.harmonicity.value = 1.5;
+    synthBass.harmonicity.value = 1;
     synthBass.voice0.oscillator.type = "triangle";
     synthBass.voice0.envelope.attack = 0.05;
     synthBass.voice1.oscillator.type = "triangle";
@@ -109,10 +110,11 @@ export default function Home() {
 
     synthA.volume.value = -14;
     fatOsc.volume.value = -10;
-    polySynth.volume.value = -12;
+    polySynth.volume.value = -26;
     piano.volume.value = -10;
-    drums.volume.value = -1;
-    synthBass.volume.value = -15;
+    drums.volume.value = -10;
+    synthBass.volume.value = -18;
+
     const mixer = new Tone.Gain();
     const reverb = new Tone.Reverb({
       wet: 0.3,
@@ -136,34 +138,13 @@ export default function Home() {
       startLead();
       startDrums();
       startBass();
-      // startPiano();
-      // startSynth();
+      startTwinkle();
+      startSynth();
     });
   }, [isPlaying]);
 
-  const startBass = () => {
-    let noteLetter;
-    let octave = 2;
-
-    let idx = 0;
-    new Tone.Loop((time) => {
-      noteLetter = getNextNoteLetter(idx);
-      const note = getNote(noteLetter, octave);
-      synthBass.triggerAttackRelease(note, "1n", time);
-      idx++;
-    }, "1n").start();
-  };
-
-  const getNextNoteLetter = (
-    currentIndex,
-    progression = ["C", "G", "F", "G"]
-  ) => {
-    const nextIndex = currentIndex % 4;
-    const noteLetter = progression[nextIndex];
-    return noteLetter;
-  };
-
-  const startLead = () => {
+  const startTwinkle = () => {
+    const autoPanner = new Tone.AutoPanner("4n").toDestination().start();
     const synthC = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
         type: "fatsawtooth",
@@ -178,7 +159,113 @@ export default function Home() {
         attackCurve: "exponential",
       },
     }).toDestination();
+    synthC.volume.value = -32;
+    synthC.connect(autoPanner);
+
+    let octave = 6;
+    let idx = 0;
+    let measure = 0;
+    new Tone.Loop((time) => {
+      let noteLetters = getNextNoteLetterAlt(measure);
+      const note1 = getNote(noteLetters[0], octave);
+      const note2 = getNote(noteLetters[1], octave);
+      if (idx % 2 === 0) {
+        synthC.triggerAttackRelease(note2, "8n", time);
+      } else {
+        synthC.triggerAttackRelease(note1, "8n", time);
+      }
+      idx++;
+      if (idx % 8 === 0) measure++;
+    }, "8n").start();
+  };
+
+  const startBass = () => {
+    let noteLetter;
+    let octave = 2;
+
+    let idx = 0;
+    let measure = 0;
+    new Tone.Loop((time) => {
+      noteLetter = getNextNoteLetter(measure);
+      const note1 = getNote(noteLetter, octave);
+      synthBass.triggerAttackRelease(note1, "10n", time);
+      idx++;
+      if (idx % 8 === 0) measure++;
+    }, "8n").start();
+  };
+
+  const startSynth = () => {
+    let noteLetter;
+    let octave = 4;
+
+    let idx = 0;
+    let measure = 0;
+    new Tone.Loop((time) => {
+      noteLetter = getNextNoteLetter(measure);
+      let harmonyNotes = getNextHarmonyNotes(measure).map(
+        (note) => `${note}${octave}`
+      );
+      const note1 = getNote(noteLetter, octave - 1);
+
+      const keyNote = getNote(keyLetter, 3);
+      const notes = [note1].concat(harmonyNotes);
+
+      polySynth.triggerAttackRelease(notes, "10n", time);
+      idx++;
+      if (idx % 8 === 0) measure++;
+    }, "8n").start();
+  };
+
+  const getNextNoteLetter = (
+    currentIndex,
+    progression = ["C", "G", "F", "G"]
+  ) => {
+    const nextIndex = currentIndex % 4;
+    const noteLetter = progression[nextIndex];
+    return noteLetter;
+  };
+
+  const getNextNoteLetterAlt = (
+    currentIndex,
+    progression = [
+      ["C", "E"],
+      ["G", "B"],
+      ["F", "A"],
+      ["G", "B"],
+    ]
+  ) => {
+    const nextIndex = currentIndex % 4;
+    const noteLetter = progression[nextIndex];
+    return noteLetter;
+  };
+
+  const getNextHarmonyNotes = (
+    currentIndex,
+    progression = ["Cmaj7", "Gmaj7", "Fmaj7", "Gmaj7"]
+  ) => {
+    const nextIndex = currentIndex % 4;
+    const chord = Chord.get(progression[nextIndex]);
+    return chord.notes;
+  };
+
+  const startLead = () => {
+    // const chorus = new Tone.Chorus(4, 2.5, 0.5).toDestination().start();
+    const synthC = new Tone.PolySynth(Tone.Synth, {
+      oscillator: {
+        type: "fatsawtooth",
+        count: 3,
+        spread: 30,
+      },
+      envelope: {
+        attack: 0.31, // 0.01
+        decay: 0.1,
+        sustain: 0.5,
+        release: 0.4,
+        attackCurve: "exponential",
+      },
+    }).toDestination();
     synthC.volume.value = -15;
+    // synthC.connect(chorus);
 
     let i = 0;
     let octave = 4;
@@ -190,11 +277,11 @@ export default function Home() {
         const octaveAlt = idx < 3 ? octave : octave + 1;
         return `${note}${octaveAlt}`;
       });
-      if (![6, 10, 15].includes(i)) {
-        synthC.triggerAttackRelease(chordNotes, "8n", time);
+      if (i % 4 && randomInt(10) > 2) {
+        synthC.triggerAttackRelease(chordNotes, "16n", time);
       }
       i++;
-    }, "8n").start();
+    }, "16n").start();
   };
 
   const startDrums = () => {
@@ -209,11 +296,10 @@ export default function Home() {
 
     let hihatTicks = 0;
     const hihatLoop = new Tone.Loop((time) => {
-      // if (!(hihatTicks % 2)) {
-      drums.triggerAttackRelease("E4", "8n", time);
-      // }
+      if (!(hihatTicks % 2 === 0)) {
+        drums.triggerAttackRelease("E4", "8n", time);
+      }
       hihatTicks++;
-      // }, "8n").start("8n");
     }, "8n").start();
 
     // triggered every quarter note.
