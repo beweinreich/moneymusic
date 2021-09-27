@@ -252,19 +252,21 @@ export default function Home() {
       //   }
       // }
 
-      if (rolling) {
-        if (ticks % 4 && playNote) {
-          polySynth.triggerAttackRelease(note, "8n", time);
-        }
-      } else {
-        if (playNote) {
-          polySynth.triggerAttackRelease(
-            note,
-            durations[randomInt(durations.length)],
-            time
-          );
-        }
+      // if (rolling) {
+
+      if (ticks % 4 && playNote) {
+        synthA.triggerAttackRelease(note, "8n", time);
+        synthB.triggerAttackRelease(note, "8n", time);
       }
+      // } else {
+      //   if (playNote) {
+      //     polySynth.triggerAttackRelease(
+      //       note,
+      //       durations[randomInt(durations.length)],
+      //       time
+      //     );
+      //   }
+      // }
     }, "8n").start();
   };
 
