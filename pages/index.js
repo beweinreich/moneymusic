@@ -45,19 +45,7 @@ export default function Home() {
       baseUrl: "https://tonejs.github.io/audio/salamander/",
     }).toDestination();
 
-    const sampler2 = new Tone.Sampler({
-      urls: {
-        C4: "C4.mp3",
-        "D#4": "Ds4.mp3",
-        "F#4": "Fs4.mp3",
-        A4: "A4.mp3",
-      },
-      release: 1,
-      baseUrl: "https://tonejs.github.io/audio/salamander/",
-    }).toDestination();
-
     sampler.volume.value = -10;
-    sampler2.volume.value = -10;
     const mixer = new Tone.Gain();
     const reverb = new Tone.Reverb({
       wet: 0.3,
@@ -67,7 +55,6 @@ export default function Home() {
     // setup the audio chain:
     // synth(s) -> mixer -> reverb -> Tone.Master
     sampler.connect(mixer);
-    sampler2.connect(mixer);
     mixer.connect(reverb);
     reverb.toDestination();
 
@@ -94,35 +81,43 @@ export default function Home() {
 
         const playNote = randomInt(10) > 2;
 
-        if (ticks % 60 === 0) {
+        if (ticks % 40 === 0) {
           rolling = !rolling;
         }
 
         if (rolling) {
+          // some rolling on the chords
           if (ticks % 4 === 0) {
             chordNotes.map((note, idx) => {
               const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
-              sampler2.triggerAttackRelease(note, "8n", time + timeOffset);
+              sampler.triggerAttackRelease(note, "8n", time + timeOffset);
             });
           }
         } else {
+          // chords together
           if (ticks % 8 === 0) {
             if (randomInt(10) > 2) {
-              sampler2.triggerAttackRelease(chordNotes, "1n", time);
+              sampler.triggerAttackRelease(chordNotes, "1n", time);
             }
           } else {
             if (playNote && randomInt(10) > 8) {
-              sampler2.triggerAttackRelease(chordNotes, "1n", time);
+              sampler.triggerAttackRelease(chordNotes, "1n", time);
             }
           }
         }
 
-        if (playNote) {
-          sampler.triggerAttackRelease(
-            note,
-            durations[randomInt(durations.length)],
-            time
-          );
+        if (rolling) {
+          if (ticks % 4 && playNote) {
+            sampler.triggerAttackRelease(note, "8n", time);
+          }
+        } else {
+          if (playNote) {
+            sampler.triggerAttackRelease(
+              note,
+              durations[randomInt(durations.length)],
+              time
+            );
+          }
         }
       }, "32n");
 
