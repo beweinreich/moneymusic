@@ -133,42 +133,58 @@ export default function Home() {
 
     /*****************************************************START*********************************************/
     Tone.loaded().then(() => {
-      startLead();
-      startDrums();
+      const synthC = new Tone.PolySynth(Tone.Synth, {
+        oscillator: {
+          type: "fatsawtooth",
+          count: 3,
+          spread: 30,
+        },
+        envelope: {
+          attack: 0.01,
+          decay: 0.1,
+          sustain: 0.5,
+          release: 0.4,
+          attackCurve: "exponential",
+        },
+      }).toDestination();
+
+      synthC.triggerAttackRelease(["G4", "B5", "D4"], "4n");
+
+      // startDrums();
       // startPiano();
       // startSynth();
     });
   }, [isPlaying]);
 
-  const startLead = () => {
-    const synthC = new Tone.PolySynth(Tone.Synth, {
-      oscillator: {
-        type: "fatsawtooth",
-        count: 3,
-        spread: 30,
-      },
-      envelope: {
-        attack: 0.01,
-        decay: 0.1,
-        sustain: 0.5,
-        release: 0.4,
-        attackCurve: "exponential",
-      },
-    }).toDestination();
-    synthC.volume.value = -15;
+  // const startSynth = () => {
+  //   let noteLetter;
+  //   let octave = 4;
 
-    let i = 0;
-    let octave = 4;
+  //   new Tone.Loop((time) => {
+  //     autoWah.Q.value = Math.random() * 10;
+
+  //     noteLetter = getNextNoteLetter(noteLetter);
+  //     const note = getNote(noteLetter, octave);
+  //     // if (!(hihatTicks % 2)) {
+  //     synth.triggerAttackRelease(note, "16n", time);
+  //     // }
+  //     // hihatTicks++;
+  //   }, "16n").start();
+  // };
+
+  const startSynth = () => {
+    let noteLetter;
+    let octave = 2;
+
+    let idx = 0;
     new Tone.Loop((time) => {
-      const chordName = getNextChord(i);
-      const chord = Chord.get(chordName);
-      // const octaveAlt = octave + randomInt(2) * (randomInt(2) === 1 ? -1 : 1);
-      const chordNotes = chord.notes.map((note, idx) => {
-        const octaveAlt = idx < 3 ? octave : octave + 1;
-        return `${note}${octaveAlt}`;
-      });
-      synthC.triggerAttackRelease(chordNotes, "1n", time);
-      i++;
+      noteLetter = getNextNoteLetter(idx);
+      const note = getNote(noteLetter, octave);
+      synthBass.triggerAttackRelease(note, "1n", time);
+
+      // }
+      // hihatTicks++;
+      idx++;
     }, "1n").start();
   };
 
@@ -201,12 +217,113 @@ export default function Home() {
     }, "4n").start();
   };
 
-  const chordProgressions = [[chords[0], chords[4], chords[3], chords[4]]];
+  const startPiano = () => {
+    let noteLetter;
+    let octave = 4;
+    let rolling = false;
+    let ticks = 0;
 
-  const getNextChord = (currentIndex) => {
+    const phaser = new Tone.Phaser({
+      frequency: 15,
+      octaves: 5,
+      baseFrequency: 1000,
+    }).toDestination();
+    polySynth.connect(phaser);
+
+    new Tone.Loop((time) => {
+      ticks++;
+
+      noteLetter = getNextRandomNoteLetter(noteLetter);
+      const note = getNote(noteLetter, octave);
+
+      const scaleNotes = Scale.get(`${noteLetter} major`).notes;
+
+      const oneFour = [0, 3][randomInt(2)];
+      let chord = Chord.get(scaleNotes[oneFour]);
+      let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
+
+      const playNote = randomInt(10) > 2;
+
+      if (ticks % 40 === 0) {
+        rolling = !rolling;
+      }
+
+      // if (rolling) {
+      //   // some rolling on the chords
+      //   if (ticks % 4 === 0) {
+      //     chordNotes.map((note, idx) => {
+      //       const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
+      //       polySynth.triggerAttackRelease(note, "4n", time + timeOffset);
+      //     });
+      //   }
+      // }
+      // } else {
+      //   // chords together
+      //   if (ticks % 8 === 0) {
+      //     if (randomInt(10) > 2) {
+      //       polySynth.triggerAttackRelease(chordNotes, "1n", time);
+      //     }
+      //   } else {
+      //     if (playNote && randomInt(10) > 8) {
+      //       polySynth.triggerAttackRelease(chordNotes, "1n", time);
+      //     }
+      //   }
+      // }
+
+      // if (rolling) {
+
+      if (ticks % 4 && playNote) {
+        synthA.triggerAttackRelease(note, "8n", time);
+        synthB.triggerAttackRelease(note, "8n", time);
+      }
+      // } else {
+      //   if (playNote) {
+      //     polySynth.triggerAttackRelease(
+      //       note,
+      //       durations[randomInt(durations.length)],
+      //       time
+      //     );
+      //   }
+      // }
+    }, "8n").start();
+  };
+
+  const chordRules = {
+    1: [1, 2, 3, 4, 5, 6, 7],
+    2: [5, 7],
+    3: [4, 6],
+    4: [2, 5, 7],
+    5: [6],
+    6: [2, 3, 4, 5],
+    7: [1],
+  };
+
+  // instruments
+  // const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+  // use sampler below to use diff instruments
+  // https://github.com/nbrosowsky/tonejs-instruments/tree/master/samples
+
+  const getNextRandomNoteLetter = (currentNote) => {
+    if (!currentNote) return keyLetter;
+
+    const currentIndex = scale.indexOf(currentNote);
+    const isPositive = randomInt(2) === 1;
+
+    let nextIndex = currentIndex + randomInt(3) * (isPositive ? 1 : -1);
+
+    if (nextIndex >= scale.length || nextIndex < 0) nextIndex = currentIndex;
+    const noteLetter = scale[nextIndex];
+
+    return noteLetter;
+  };
+
+  const getNextNoteLetter = (
+    currentIndex,
+    progression = ["C", "G", "F", "G"]
+  ) => {
     const nextIndex = currentIndex % 4;
-    const nextChord = chordProgressions[0][nextIndex];
-    return nextChord;
+    const noteLetter = progression[nextIndex];
+    return noteLetter;
   };
 
   const getNote = (noteLetter, octave) => {
