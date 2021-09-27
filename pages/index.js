@@ -70,6 +70,8 @@ export default function Home() {
       release: 1,
       baseUrl: "/cello/",
     });
+    const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
+    cello.connect(autoPanner);
 
     piano.volume.value = -10;
     cello.volume.value = -20;
@@ -119,7 +121,16 @@ export default function Home() {
         }
 
         if (ticks % 8 === 0) {
-          cello.triggerAttackRelease(chordNotesCello, "4n", time);
+          if (randomInt(10) > 4) {
+            cello.triggerAttackRelease(chordNotesCello, "4n", time);
+          } else {
+            cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
+            cello.triggerAttackRelease(
+              chordNotesCello[1],
+              "8n",
+              time + Tone.Time(`${1 * 16}n`)
+            );
+          }
         }
 
         if (arping) {
