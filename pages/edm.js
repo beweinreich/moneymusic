@@ -135,7 +135,7 @@ export default function Home() {
 
     /*****************************************************START*********************************************/
     Tone.loaded().then(() => {
-      startLead();
+      // startLead();
       startDrums();
       startBass();
       startTwinkle();

@@ -34,7 +34,7 @@ export default function Home() {
     if (!isPlaying) return;
     Tone.Transport.cancel();
 
-    const sampler = new Tone.Sampler({
+    const piano = new Tone.Sampler({
       urls: {
         C4: "C4.mp3",
         "D#4": "Ds4.mp3",
@@ -45,7 +45,34 @@ export default function Home() {
       baseUrl: "https://tonejs.github.io/audio/salamander/",
     }).toDestination();
 
-    sampler.volume.value = -10;
+    const cello = new Tone.Sampler({
+      urls: {
+        E2: "E2.wav",
+        E3: "E3.wav",
+        F2: "F2.wav",
+        F3: "F3.wav",
+        F4: "F4.wav",
+        G2: "G2.wav",
+        G3: "G3.wav",
+        G4: "G4.wav",
+        A2: "A2.wav",
+        A3: "A3.wav",
+        A4: "A4.wav",
+        B2: "B2.wav",
+        B3: "B3.wav",
+        B4: "B4.wav",
+        C2: "C2.wav",
+        C3: "C3.wav",
+        D2: "D2.wav",
+        D3: "D3.wav",
+        D4: "D4.wav",
+      },
+      release: 1,
+      baseUrl: "/cello/",
+    });
+
+    piano.volume.value = -10;
+    cello.volume.value = -20;
     const mixer = new Tone.Gain();
     const reverb = new Tone.Reverb({
       wet: 0.3,
@@ -54,7 +81,8 @@ export default function Home() {
 
     // setup the audio chain:
     // synth(s) -> mixer -> reverb -> Tone.Master
-    sampler.connect(mixer);
+    cello.connect(mixer);
+    piano.connect(mixer);
     mixer.connect(reverb);
     reverb.toDestination();
 
@@ -75,7 +103,9 @@ export default function Home() {
 
         const oneFour = [0, 3][randomInt(2)];
         let chord = Chord.get(scale[oneFour]);
-        let chordNotes = chord.notes.map((note) => `${note}${octave - 1}`);
+        let chordNotes = chord.notes;
+        let chordNotesCello = chord.notes.map((note) => `${note}${octave - 1}`);
+        let chordNotesPiano = chord.notes.map((note) => `${note}${octave}`);
 
         const playNote = randomInt(10) > 2;
 
@@ -83,23 +113,27 @@ export default function Home() {
           arping = !arping;
         }
 
+        if (ticks % 8 === 0) {
+          cello.triggerAttackRelease(chordNotesCello, "4n", time);
+        }
+
         if (arping) {
           // some arping on the chords
           if (ticks % 4 === 0) {
-            chordNotes.map((note, idx) => {
+            chordNotesCello.map((note, idx) => {
               const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
-              sampler.triggerAttackRelease(note, "8n", time + timeOffset);
+              piano.triggerAttackRelease(note, "8n", time + timeOffset);
             });
           }
         } else {
           // chords together
           if (ticks % 8 === 0) {
             if (randomInt(10) > 2) {
-              sampler.triggerAttackRelease(chordNotes, "1n", time);
+              piano.triggerAttackRelease(chordNotesCello, "1n", time);
             }
           } else {
             if (playNote && randomInt(10) > 8) {
-              sampler.triggerAttackRelease(chordNotes, "1n", time);
+              piano.triggerAttackRelease(chordNotesCello, "1n", time);
             }
           }
         }
@@ -108,15 +142,13 @@ export default function Home() {
           if (ticks % 4 && playNote) {
             // if we are "arpeggiating" pick one of the notes from the chord
             // to avoid dissonance
-            note = chord.notes.map((note) => `${note}${octave}`)[
-              randomInt(chord.notes.length)
-            ];
-            sampler.triggerAttackRelease(note, "8n", time);
+            note = chordNotesPiano[randomInt(chord.notes.length)];
+            piano.triggerAttackRelease(note, "8n", time);
           }
         } else {
           if (playNote) {
-            sampler.triggerAttackRelease(
-              chordNotes[randomInt(chordNotes.length)],
+            piano.triggerAttackRelease(
+              chordNotesPiano[randomInt(chordNotesPiano.length)],
               durations[randomInt(durations.length)],
               time
             );
