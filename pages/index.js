@@ -90,7 +90,7 @@ export default function Home() {
     let octave = 4;
     let arping = true;
 
-    Tone.Transport.bpm.value = 28;
+    Tone.Transport.bpm.value = 18 + randomInt(20);
 
     let ticks = 0;
     Tone.loaded().then(() => {
@@ -104,7 +104,12 @@ export default function Home() {
         const oneFour = [0, 3][randomInt(2)];
         let chord = Chord.get(scale[oneFour]);
         let chordNotes = chord.notes;
-        let chordNotesCello = chord.notes.map((note) => `${note}${octave - 1}`);
+        let chordNotesCello = chord.notes.map(
+          (note) => `${note}${octave - randomInt(2)}`
+        );
+        let chordNotesPianoBass = chord.notes.map(
+          (note) => `${note}${octave - 1}`
+        );
         let chordNotesPiano = chord.notes.map((note) => `${note}${octave}`);
 
         const playNote = randomInt(10) > 2;
@@ -120,7 +125,7 @@ export default function Home() {
         if (arping) {
           // some arping on the chords
           if (ticks % 4 === 0) {
-            chordNotesCello.map((note, idx) => {
+            chordNotesPianoBass.map((note, idx) => {
               const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
               piano.triggerAttackRelease(note, "8n", time + timeOffset);
             });
@@ -129,11 +134,11 @@ export default function Home() {
           // chords together
           if (ticks % 8 === 0) {
             if (randomInt(10) > 2) {
-              piano.triggerAttackRelease(chordNotesCello, "1n", time);
+              piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
             }
           } else {
             if (playNote && randomInt(10) > 8) {
-              piano.triggerAttackRelease(chordNotesCello, "1n", time);
+              piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
             }
           }
         }
