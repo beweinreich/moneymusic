@@ -35,10 +35,11 @@ export default function Home() {
     if (!isPlaying) return;
     Tone.start();
     Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 20 + randomInt(20);
+    Tone.Transport.bpm.value = 48 + randomInt(20);
 
     playCello();
     playPiano();
+    playDrums();
   }, [isPlaying]);
 
   useEffect(() => {
@@ -60,6 +61,53 @@ export default function Home() {
     can.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
   }, []);
 
+  const playDrums = async () => {
+    const drums = new Tone.Sampler({
+      urls: {
+        C4: "CYCdh_ElecK04-Snr03.wav",
+        D4: "Abletunes FBD Taster - Bassdrum 02.wav",
+        E4: "CYCdh_ElecK07-ClHat01.wav",
+        F4: "Abletunes FBD Taster - Snares & Claps 05.wav",
+        G4: "CYCdh_ElecK01-OpHat02.wav",
+      },
+      release: 1,
+      baseUrl: "/drums/brian/",
+    }).toDestination();
+    const reverb = new Tone.Reverb({
+      wet: 0.3,
+      decay: 30,
+    }).toDestination();
+    drums.connect(reverb);
+    drums.volume.value = -7;
+
+    await Tone.loaded();
+    // triggered every quarter note.
+    let kickTicks = 0;
+    const kickLoop = new Tone.Loop((time) => {
+      // if (!(kickTicks % 2)) {
+      drums.triggerAttackRelease("D4", "8n", time);
+      // }
+      kickTicks++;
+    }, "4n").start();
+
+    let hihatTicks = 0;
+    const hihatLoop = new Tone.Loop((time) => {
+      if (!(hihatTicks % 2 === 0)) {
+        drums.triggerAttackRelease("G4", "8n", time);
+      }
+      hihatTicks++;
+    }, "8n").start();
+
+    // triggered every quarter note.
+    let snareTicks = 0;
+    const snareLoop = new Tone.Loop((time) => {
+      if (snareTicks % 2) {
+        drums.triggerAttackRelease("F4", "8n", time);
+      }
+      snareTicks++;
+    }, "4n").start();
+  };
+
   const playCello = async () => {
     const cello = new Tone.Sampler(celloConfig).toDestination();
     const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
@@ -69,7 +117,7 @@ export default function Home() {
       decay: 30,
     }).toDestination();
 
-    cello.volume.value = -25;
+    cello.volume.value = -20;
     cello.chain(autoPanner, reverb);
 
     let noteLetter;
@@ -104,7 +152,7 @@ export default function Home() {
         //   );
         // }
       }
-    }, "32n").start();
+    }, "16n").start();
   };
 
   const playPiano = async () => {
@@ -188,7 +236,7 @@ export default function Home() {
           );
         }
       }
-    }, "32n").start();
+    }, "16n").start();
   };
 
   const getNextNote = (currentNote) => {
