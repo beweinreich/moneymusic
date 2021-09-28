@@ -104,7 +104,7 @@ export default function Home() {
       noteLetter = getNextNote(noteLetter);
       let note = noteLetter + octave;
 
-      Tone.Draw.schedule(() => drawWaveform(wave, 600, 200), time);
+      Tone.Draw.schedule(() => drawWaveform(wave, 800, 300), time);
 
       const oneFour = [0, 3][randomInt(2)];
       let chord = Chord.get(scale[oneFour]);
@@ -217,8 +217,8 @@ export default function Home() {
       <p>In the key of {keyLetter}</p>
       <canvas
         id="canvas"
-        width="600"
-        height="200"
+        width="800"
+        height="300"
         style={{ backgroundColor: "black", borderRadius: 20 }}
       ></canvas>
       {/*<div
