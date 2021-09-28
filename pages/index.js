@@ -69,7 +69,7 @@ export default function Home() {
       decay: 30,
     }).toDestination();
 
-    cello.volume.value = -25;
+    cello.volume.value = -28;
     cello.chain(autoPanner, reverb);
 
     let noteLetter;
