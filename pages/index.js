@@ -1,5 +1,3 @@
-// https://tonejs.github.io/
-
 import react, { useEffect, useState } from "react";
 import Head from "next/head";
 import Image from "next/image";
