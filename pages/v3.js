@@ -17,6 +17,8 @@ export default function Home() {
 
   const seeder = xmur3(seed);
   const rand = sfc32(seeder(), seeder(), seeder(), seeder());
+  const seedNum = Math.floor(rand() * 100);
+
   const randomInt = (max) => {
     // max number of options
     // ex: if max == 2, then options are 0, 1
@@ -65,11 +67,11 @@ export default function Home() {
     const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
 
     const reverb = new Tone.Reverb({
-      wet: 0.3,
+      wet: 0.4,
       decay: 30,
     }).toDestination();
 
-    cello.volume.value = -38;
+    cello.volume.value = -32;
     cello.chain(autoPanner, reverb);
 
     let noteLetter;
@@ -90,19 +92,20 @@ export default function Home() {
       let chordNotesCello = chord.notes.map(
         (note) => `${note}${octave - randomInt(2)}`
       );
+      console.log(chordNotes);
       const playNote = randomInt(10) > 2;
 
       if (ticks % 8 === 0) {
-        // if (randomInt(10) > 4) {
-        cello.triggerAttackRelease(chordNotesCello, "4n", time);
-        // } else {
-        //   cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
-        //   cello.triggerAttackRelease(
-        //     chordNotesCello[1],
-        //     "8n",
-        //     time + Tone.Time("16n")
-        //   );
-        // }
+        if (randomInt(10) > 4) {
+          cello.triggerAttackRelease(chordNotesCello, "4n", time);
+        } else {
+          cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
+          cello.triggerAttackRelease(
+            chordNotesCello[1],
+            "8n",
+            time + Tone.Time("16n")
+          );
+        }
       }
     }, "32n").start();
   };
@@ -137,7 +140,8 @@ export default function Home() {
         time
       );
 
-      const oneFour = [0, 3][randomInt(2)];
+      let oneFour = seedNum > 0 ? [0, 3][randomInt(2)] : [1, 5][randomInt(2)];
+
       let chord = Chord.get(scale[oneFour]);
       let chordNotes = chord.notes;
       let chordNotesPianoBass = chord.notes.map(
