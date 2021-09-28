@@ -1,3 +1,6 @@
+import { Scale, Chord, Key } from "@tonaljs/tonal";
+import { shuffle } from "./random";
+
 const chordProgressions = {
   0: [1, 5, 4, 5],
   1: [1, 4, 2, 5],
@@ -6,61 +9,88 @@ const chordProgressions = {
 };
 
 const measuresPerProgression = 4;
+const numberChordProgressions = Object.keys(chordProgressions).length;
 
-const getCurrentChordProgressionIteration = (ticks, duration) => {
-  /* Based on the number of ticks so far, what progression # should we be on? */
-  const durationNum = parseInt(duration.slice(0, -1)); // 16n -> 16
-  const notesPerProgression = durationNum * measuresPerProgression; // ex: 64 16n per progression
+const getCurrentChordProgressionIteration = (ticks, tickDuration) => {
+  /* Gets the progression iteration we currently are on
+  /* This is based on how many ticks have occurred, and the duration of a given tick
+  */
+  const ticksPerMeasure = parseInt(tickDuration.slice(0, -1)); // 16n -> 16
+  const notesPerProgression = ticksPerMeasure * measuresPerProgression; // ex: 64 16n per progression
   const progressionIteration = Math.floor(ticks / notesPerProgression); // 7th iteration through progressions
 
   return progressionIteration;
 };
 
-const getCurrentChordProgression = (ticks, duration, seedNum) => {
-  // seedNum should always be the same number for a given seed
-  // the seedNum scrambles the order of the chordProgressions
-
-  // First get the progression iteration we currently are on
-  const currentIteration = getCurrentChordProgressionIteration(ticks, duration);
-  const numberChordProgressions = Object.keys(chordProgressions).length;
-
-  // keeps the number coerced to available chord progressions
+const getCurrentChordProgression = (ticks, tickDuration, initialSeed) => {
+  const currentIteration = getCurrentChordProgressionIteration(
+    ticks,
+    tickDuration
+  );
   const coercedIteration = currentIteration % numberChordProgressions;
-  console.log("Iteration: ", coercedIteration);
+  console.log("Progression: ", coercedIteration);
 
-  /* Now we need to coerce the progression iteration to one of the available chordProgressions
+  const shuffled = shuffledChordProgressions(initialSeed);
+  return shuffled[coercedIteration];
+};
+
+const shuffledChordProgressions = (initialSeed) => {
+  /* Coerce the progression iteration to one of the available chordProgressions
   /* This isn't really a good randomization... but for now, we'll deal with it
   /* TODO: make this more "random"
+  /* Note: initialSeed should be static for a given "seed" of the application
+  /* i.e. don't rotate the initialSeed unless you want to scramble the progressions
   */
-  const seed = seedNum < 1 ? seedNum * 100 : seedNum;
-  const coercedSeedNum = Math.floor(seed % numberChordProgressions);
+  const seed = initialSeed < 1 ? initialSeed * 100 : initialSeed;
+  const coercedInitialSeed = Math.floor(seed % numberChordProgressions);
 
   let shuffledProgressions = {};
   const shuffledProgressionValues = shuffle(
     Object.keys(chordProgressions),
-    coercedSeedNum
+    coercedInitialSeed
   ).map((key) => chordProgressions[key]);
 
   shuffledProgressionValues.forEach(
     (item, idx) => (shuffledProgressions[idx] = item)
   );
 
-  return shuffledProgressions[coercedIteration];
+  return shuffledProgressions;
 };
 
-function shuffle(array, randomInt) {
-  let currentIndex = array.length;
+const getCurrentMeasure = (ticks, tickDuration) => {
+  /* Gets the measure we currently are on
+  /* This is based on how many ticks have occurred, and the duration of a given tick
+  */
+  const ticksPerMeasure = parseInt(tickDuration.slice(0, -1)); // 16n -> 16
+  const currentMeasure = Math.floor(ticks / ticksPerMeasure);
+  const currentMeasureCoerced = currentMeasure % measuresPerProgression;
 
-  while (currentIndex != 0) {
-    currentIndex--;
+  return currentMeasureCoerced;
+};
 
-    [array[currentIndex], array[randomInt]] = [
-      array[randomInt],
-      array[currentIndex],
-    ];
-  }
+const getAvailableNotes = (key, ticks, tickDuration, initialSeed) => {
+  const currentChordProgression = getCurrentChordProgression(
+    ticks,
+    tickDuration,
+    initialSeed
+  );
+  const currentMeasure = getCurrentMeasure(ticks, tickDuration);
+  console.log("Measure: ", currentMeasure);
 
-  return array.filter((n) => n);
-}
+  // subtract 1 to convert from music progressions to computer sci
+  // i.e. a 5 chord is really the 4th index on a scale array
+  const chordNum = currentChordProgression[currentMeasure] - 1;
+  const rootNote = key.scale[chordNum];
+  const notes = Chord.get(`${rootNote}maj7`).notes;
 
-export { getCurrentChordProgression };
+  return notes;
+};
+
+const notesWithOctave = (notes, octave) => {
+  return notes.map((note, idx) => {
+    if (idx === notes.length - 1) octave = octave + 1;
+    return `${note}${octave}`;
+  });
+};
+
+export { getCurrentChordProgression, getAvailableNotes, notesWithOctave };

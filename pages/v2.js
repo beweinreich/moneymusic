@@ -6,7 +6,11 @@ import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
 import { celloConfig, pianoConfig } from "../helpers/instruments";
 import { xmur3, sfc32, mulberry32 } from "../helpers/random";
-import { getCurrentChordProgression } from "../helpers/music-math";
+import {
+  getCurrentChordProgression,
+  getAvailableNotes,
+  notesWithOctave,
+} from "../helpers/music-math";
 
 export default function Music() {
   /* Rules for creating music
@@ -52,9 +56,10 @@ export default function Music() {
 
     let i = 0;
     new Tone.Loop((time) => {
-      const res = getCurrentChordProgression(i, "16n", initialSeed);
+      const availableNotes = getAvailableNotes(key, i, "16n", initialSeed);
+      const notes = notesWithOctave(availableNotes, 4);
       i++;
-      console.log(res);
+      console.log(notes);
     }, "16n").start();
     // playCello();
     // playPiano();

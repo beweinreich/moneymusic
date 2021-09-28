@@ -34,4 +34,19 @@ function mulberry32(a) {
   };
 }
 
-export { xmur3, sfc32, mulberry32 };
+function shuffle(array, randomInt) {
+  let currentIndex = array.length;
+
+  while (currentIndex != 0) {
+    currentIndex--;
+
+    [array[currentIndex], array[randomInt]] = [
+      array[randomInt],
+      array[currentIndex],
+    ];
+  }
+
+  return array.filter((n) => n);
+}
+
+export { xmur3, sfc32, mulberry32, shuffle };
