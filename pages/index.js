@@ -6,6 +6,8 @@ import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
+import { celloConfig, pianoConfig } from "../helpers/instruments";
+import { xmur3, sfc32 } from "../helpers/random";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -28,62 +30,64 @@ export default function Home() {
   const durations = ["4n", "8n", "16n", "32n"];
   const scale = key.scale;
   const chords = key.chords;
-  console.log(`We are in key:`, key);
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    Tone.Transport.cancel();
-
-    const piano = new Tone.Sampler({
-      urls: {
-        C4: "C4.mp3",
-        "D#4": "Ds4.mp3",
-        "F#4": "Fs4.mp3",
-        A4: "A4.mp3",
-      },
-      release: 1,
-      baseUrl: "https://tonejs.github.io/audio/salamander/",
-    }).toDestination();
-
-    const cello = new Tone.Sampler({
-      urls: {
-        E2: "E2.wav",
-        E3: "E3.wav",
-        F2: "F2.wav",
-        F3: "F3.wav",
-        F4: "F4.wav",
-        G2: "G2.wav",
-        G3: "G3.wav",
-        G4: "G4.wav",
-        A2: "A2.wav",
-        A3: "A3.wav",
-        A4: "A4.wav",
-        B2: "B2.wav",
-        B3: "B3.wav",
-        B4: "B4.wav",
-        C2: "C2.wav",
-        C3: "C3.wav",
-        D2: "D2.wav",
-        D3: "D3.wav",
-        D4: "D4.wav",
-      },
-      release: 1,
-      baseUrl: "/cello/",
-    });
+  const playCello = () => {
+    const cello = new Tone.Sampler(celloConfig).toDestination();
     const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
-    cello.connect(autoPanner);
-
-    piano.volume.value = -10;
-    cello.volume.value = -20;
     const mixer = new Tone.Gain();
     const reverb = new Tone.Reverb({
       wet: 0.3,
       decay: 30,
     });
 
-    // setup the audio chain:
-    // synth(s) -> mixer -> reverb -> Tone.Master
-    cello.connect(mixer);
+    cello.volume.value = -20;
+    cello.chain(autoPanner, mixer);
+    mixer.connect(reverb);
+    reverb.toDestination();
+
+    let noteLetter;
+    let octave = 4;
+    let arping = true;
+    let ticks = 0;
+
+    const loop = new Tone.Loop((time) => {
+      ticks++;
+
+      noteLetter = getNextNote(noteLetter);
+      let note = noteLetter + octave;
+
+      const oneFour = [0, 3][randomInt(2)];
+      let chord = Chord.get(scale[oneFour]);
+      let chordNotes = chord.notes;
+      let chordNotesCello = chord.notes.map(
+        (note) => `${note}${octave - randomInt(2)}`
+      );
+      const playNote = randomInt(10) > 2;
+
+      if (ticks % 8 === 0) {
+        // if (randomInt(10) > 4) {
+        cello.triggerAttackRelease(chordNotesCello, "4n", time);
+        // } else {
+        //   cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
+        //   cello.triggerAttackRelease(
+        //     chordNotesCello[1],
+        //     "8n",
+        //     time + Tone.Time("16n")
+        //   );
+        // }
+      }
+    }, "32n").start();
+  };
+
+  const playPiano = () => {
+    const piano = new Tone.Sampler(pianoConfig).toDestination();
+    const mixer = new Tone.Gain();
+    const reverb = new Tone.Reverb({
+      wet: 0.3,
+      decay: 30,
+    });
+
+    piano.volume.value = -10;
     piano.connect(mixer);
     mixer.connect(reverb);
     reverb.toDestination();
@@ -92,13 +96,10 @@ export default function Home() {
     let octave = 4;
     let arping = true;
 
-    Tone.Transport.bpm.value = 18 + randomInt(20);
-
     let ticks = 0;
     Tone.loaded().then(() => {
       const loop = new Tone.Loop((time) => {
         ticks++;
-        // console.log(ticks);
 
         noteLetter = getNextNote(noteLetter);
         let note = noteLetter + octave;
@@ -106,9 +107,6 @@ export default function Home() {
         const oneFour = [0, 3][randomInt(2)];
         let chord = Chord.get(scale[oneFour]);
         let chordNotes = chord.notes;
-        let chordNotesCello = chord.notes.map(
-          (note) => `${note}${octave - randomInt(2)}`
-        );
         let chordNotesPianoBass = chord.notes.map(
           (note) => `${note}${octave - 1}`
         );
@@ -118,19 +116,6 @@ export default function Home() {
 
         if (ticks % 40 === 0) {
           arping = !arping;
-        }
-
-        if (ticks % 8 === 0) {
-          if (randomInt(10) > 4) {
-            cello.triggerAttackRelease(chordNotesCello, "4n", time);
-          } else {
-            cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
-            cello.triggerAttackRelease(
-              chordNotesCello[1],
-              "8n",
-              time + Tone.Time(`${1 * 16}n`)
-            );
-          }
         }
 
         if (arping) {
@@ -170,26 +155,20 @@ export default function Home() {
             );
           }
         }
-      }, "32n");
-
-      loop.start();
+      }, "32n").start();
     });
-  }, [isPlaying]);
-
-  const chordRules = {
-    1: [1, 2, 3, 4, 5, 6, 7],
-    2: [5, 7],
-    3: [4, 6],
-    4: [2, 5, 7],
-    5: [6],
-    6: [2, 3, 4, 5],
-    7: [1],
   };
 
-  // instruments
-  // const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-  // use sampler below to use diff instruments
-  // https://github.com/nbrosowsky/tonejs-instruments/tree/master/samples
+  useEffect(() => {
+    if (!isPlaying) return;
+    Tone.Transport.cancel();
+    Tone.Transport.bpm.value = 18 + randomInt(20);
+
+    Tone.loaded().then(() => {
+      playCello();
+      playPiano();
+    });
+  }, [isPlaying]);
 
   const getNextNote = (currentNote) => {
     if (!currentNote) return keyLetter;
@@ -249,31 +228,4 @@ export default function Home() {
       />
     </div>
   );
-}
-
-function xmur3(str) {
-  for (var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
-    (h = Math.imul(h ^ str.charCodeAt(i), 3432918353)),
-      (h = (h << 13) | (h >>> 19));
-  return function () {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    return (h ^= h >>> 16) >>> 0;
-  };
-}
-function sfc32(a, b, c, d) {
-  return function () {
-    a >>>= 0;
-    b >>>= 0;
-    c >>>= 0;
-    d >>>= 0;
-    var t = (a + b) | 0;
-    a = b ^ (b >>> 9);
-    b = (c + (c << 3)) | 0;
-    c = (c << 21) | (c >>> 11);
-    d = (d + 1) | 0;
-    t = (t + d) | 0;
-    c = (c + t) | 0;
-    return (t >>> 0) / 4294967296;
-  };
 }
