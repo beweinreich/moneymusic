@@ -54,16 +54,35 @@ export default function Music() {
     Tone.Transport.cancel();
     Tone.Transport.bpm.value = 20 + randomInt(20);
 
+    const piano = setupInstrument(pianoConfig, -10, true);
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
-    // playCello();
-    playPianoBass();
-    playPianoLead();
+    Tone.loaded().then(() => {
+      const duration = "4n";
+      let ticks = 0;
+      new Tone.Loop((time) => {
+        Tone.Draw.schedule(
+          () => drawWaveform(wave, canvasWidth, canvasHeight),
+          time
+        );
+
+        const availableNotes = getAvailableNotes(
+          key,
+          ticks,
+          duration,
+          initialSeed
+        );
+        // playCello();
+        // playPianoBass(availableNotes);
+        playPianoLead(piano, availableNotes, time);
+        ticks++;
+      }, duration).start();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying]);
 
-  const setupInstrument = async (config, volume, enableReverb = true) => {
+  const setupInstrument = (config, volume, enableReverb = true) => {
     const instrument = new Tone.Sampler(config).toDestination();
     instrument.volume.value = volume;
 
@@ -75,61 +94,33 @@ export default function Music() {
       instrument.connect(reverb);
     }
 
-    await Tone.loaded();
-
     return instrument;
   };
 
   const playNotesWithRhythm = (instrument, notes, time) => {
-    if (randomInt(3) > 1) {
-      notes.map((note, idx) => {
-        const timeOffset = idx === 0 ? 0 : idx * Tone.Time(`16n`);
-        instrument.triggerAttackRelease(note, "16n", time + timeOffset);
-        console.log("note => ", note);
-      });
-    } else {
-      instrument.triggerAttackRelease(notes);
-    }
+    // if (randomInt(3) > 1) {
+    notes.map((note, idx) => {
+      const timeOffset = idx === 0 ? 0 : idx * Tone.Time(`16n`);
+      instrument.triggerAttackRelease(note, "16n", time + timeOffset);
+      console.log("note => ", note);
+    });
+    // } else {
+    //   instrument.triggerAttackRelease(notes);
+    // }
   };
 
   const playPianoBass = async () => {
     const piano = await setupInstrument(pianoConfig, -10, true);
 
     const octave = 3;
-    const duration = "4n";
-    let ticks = 0;
-    const loop = new Tone.Loop((time) => {
-      const availableNotes = getAvailableNotes(
-        key,
-        ticks,
-        duration,
-        initialSeed
-      );
-      const notes = notesWithOctave(availableNotes, octave);
-      playNotesWithRhythm(piano, notes, time);
-
-      ticks++;
-    }, duration).start();
+    const notes = notesWithOctave(availableNotes, octave);
+    playNotesWithRhythm(piano, notes, time);
   };
 
-  const playPianoLead = async () => {
-    const piano = await setupInstrument(pianoConfig, -10, true);
-
+  const playPianoLead = async (piano, availableNotes, time) => {
     const octave = 4;
-    const duration = "4n";
-    let ticks = 0;
-    const loop = new Tone.Loop((time) => {
-      const availableNotes = getAvailableNotes(
-        key,
-        ticks,
-        duration,
-        initialSeed
-      );
-      const notes = notesWithOctave(availableNotes, octave);
-      playNotesWithRhythm(piano, notes, time);
-
-      ticks++;
-    }, duration).start();
+    const notes = notesWithOctave(availableNotes, octave);
+    playNotesWithRhythm(piano, notes, time);
   };
 
   useEffect(() => {
