@@ -12,9 +12,11 @@ export default function Home() {
   const [seed, setSeed] = useState("doggy");
   const [playingText, setPlayingText] = useState("");
 
+  const canvasWidth = 800,
+    canvasHeight = 300;
+
   const seeder = xmur3(seed);
   const rand = sfc32(seeder(), seeder(), seeder(), seeder());
-
   const randomInt = (max) => {
     // max number of options
     // ex: if max == 2, then options are 0, 1
@@ -28,6 +30,36 @@ export default function Home() {
   const durations = ["4n", "8n", "16n", "32n"];
   const scale = key.scale;
   const chords = key.chords;
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    Tone.Transport.cancel();
+    Tone.Transport.bpm.value = 18 + randomInt(20);
+
+    Tone.loaded().then(() => {
+      playCello();
+      playPiano();
+    });
+  }, [isPlaying]);
+
+  useEffect(() => {
+    var ctx = document.createElement("canvas").getContext("2d"),
+      dpr = window.devicePixelRatio || 1,
+      bsr =
+        ctx.webkitBackingStorePixelRatio ||
+        ctx.mozBackingStorePixelRatio ||
+        ctx.msBackingStorePixelRatio ||
+        ctx.oBackingStorePixelRatio ||
+        ctx.backingStorePixelRatio ||
+        1;
+    const ratio = dpr / bsr;
+    const can = document.getElementById("canvas");
+    can.width = canvasWidth * ratio;
+    can.height = canvasHeight * ratio;
+    can.style.width = canvasWidth + "px";
+    can.style.height = canvasHeight + "px";
+    can.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
+  }, []);
 
   const playCello = () => {
     const cello = new Tone.Sampler(celloConfig).toDestination();
@@ -104,7 +136,10 @@ export default function Home() {
       noteLetter = getNextNote(noteLetter);
       let note = noteLetter + octave;
 
-      Tone.Draw.schedule(() => drawWaveform(wave, 800, 300), time);
+      Tone.Draw.schedule(
+        () => drawWaveform(wave, canvasWidth, canvasHeight),
+        time
+      );
 
       const oneFour = [0, 3][randomInt(2)];
       let chord = Chord.get(scale[oneFour]);
@@ -160,17 +195,6 @@ export default function Home() {
     }, "32n").start();
   };
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 18 + randomInt(20);
-
-    Tone.loaded().then(() => {
-      playCello();
-      playPiano();
-    });
-  }, [isPlaying]);
-
   const getNextNote = (currentNote) => {
     if (!currentNote) return keyLetter;
 
@@ -217,8 +241,8 @@ export default function Home() {
       <p>In the key of {keyLetter}</p>
       <canvas
         id="canvas"
-        width="800"
-        height="300"
+        width={canvasWidth}
+        height={canvasHeight}
         style={{ backgroundColor: "black", borderRadius: 20 }}
       ></canvas>
       {/*<div
