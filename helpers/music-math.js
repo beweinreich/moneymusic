@@ -33,7 +33,7 @@ const getCurrentChordProgression = (ticks, duration, seedNum) => {
   /* TODO: make this more "random"
   */
   const seed = seedNum < 1 ? seedNum * 100 : seedNum;
-  const coercedSeedNum = seed % numberChordProgressions;
+  const coercedSeedNum = Math.floor(seed % numberChordProgressions);
 
   let shuffledProgressions = {};
   const shuffledProgressionValues = shuffle(
