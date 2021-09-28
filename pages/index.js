@@ -33,13 +33,12 @@ export default function Home() {
 
   useEffect(() => {
     if (!isPlaying) return;
+    Tone.start();
     Tone.Transport.cancel();
     Tone.Transport.bpm.value = 18 + randomInt(20);
 
-    Tone.loaded().then(() => {
-      playCello();
-      playPiano();
-    });
+    playCello();
+    playPiano();
   }, [isPlaying]);
 
   useEffect(() => {
@@ -80,33 +79,35 @@ export default function Home() {
     let arping = true;
     let ticks = 0;
 
-    const loop = new Tone.Loop((time) => {
-      ticks++;
+    Tone.loaded().then(() => {
+      const loop = new Tone.Loop((time) => {
+        ticks++;
 
-      noteLetter = getNextNote(noteLetter);
-      let note = noteLetter + octave;
+        noteLetter = getNextNote(noteLetter);
+        let note = noteLetter + octave;
 
-      const oneFour = [0, 3][randomInt(2)];
-      let chord = Chord.get(scale[oneFour]);
-      let chordNotes = chord.notes;
-      let chordNotesCello = chord.notes.map(
-        (note) => `${note}${octave - randomInt(2)}`
-      );
-      const playNote = randomInt(10) > 2;
+        const oneFour = [0, 3][randomInt(2)];
+        let chord = Chord.get(scale[oneFour]);
+        let chordNotes = chord.notes;
+        let chordNotesCello = chord.notes.map(
+          (note) => `${note}${octave - randomInt(2)}`
+        );
+        const playNote = randomInt(10) > 2;
 
-      if (ticks % 8 === 0) {
-        // if (randomInt(10) > 4) {
-        cello.triggerAttackRelease(chordNotesCello, "4n", time);
-        // } else {
-        //   cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
-        //   cello.triggerAttackRelease(
-        //     chordNotesCello[1],
-        //     "8n",
-        //     time + Tone.Time("16n")
-        //   );
-        // }
-      }
-    }, "32n").start();
+        if (ticks % 8 === 0) {
+          // if (randomInt(10) > 4) {
+          cello.triggerAttackRelease(chordNotesCello, "4n", time);
+          // } else {
+          //   cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
+          //   cello.triggerAttackRelease(
+          //     chordNotesCello[1],
+          //     "8n",
+          //     time + Tone.Time("16n")
+          //   );
+          // }
+        }
+      }, "32n").start();
+    });
   };
 
   const playPiano = () => {
@@ -130,69 +131,71 @@ export default function Home() {
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
-    const loop = new Tone.Loop((time) => {
-      ticks++;
+    Tone.loaded().then(() => {
+      const loop = new Tone.Loop((time) => {
+        ticks++;
 
-      noteLetter = getNextNote(noteLetter);
-      let note = noteLetter + octave;
+        noteLetter = getNextNote(noteLetter);
+        let note = noteLetter + octave;
 
-      Tone.Draw.schedule(
-        () => drawWaveform(wave, canvasWidth, canvasHeight),
-        time
-      );
+        Tone.Draw.schedule(
+          () => drawWaveform(wave, canvasWidth, canvasHeight),
+          time
+        );
 
-      const oneFour = [0, 3][randomInt(2)];
-      let chord = Chord.get(scale[oneFour]);
-      let chordNotes = chord.notes;
-      let chordNotesPianoBass = chord.notes.map(
-        (note) => `${note}${octave - 1}`
-      );
-      let chordNotesPiano = chord.notes.map((note) => `${note}${octave}`);
+        const oneFour = [0, 3][randomInt(2)];
+        let chord = Chord.get(scale[oneFour]);
+        let chordNotes = chord.notes;
+        let chordNotesPianoBass = chord.notes.map(
+          (note) => `${note}${octave - 1}`
+        );
+        let chordNotesPiano = chord.notes.map((note) => `${note}${octave}`);
 
-      const playNote = randomInt(10) > 2;
+        const playNote = randomInt(10) > 2;
 
-      if (ticks % 40 === 0) {
-        arping = !arping;
-      }
-
-      if (arping) {
-        // some arping on the chords
-        if (ticks % 4 === 0) {
-          chordNotesPianoBass.map((note, idx) => {
-            const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
-            piano.triggerAttackRelease(note, "8n", time + timeOffset);
-          });
+        if (ticks % 40 === 0) {
+          arping = !arping;
         }
-      } else {
-        // chords together
-        if (ticks % 8 === 0) {
-          if (randomInt(10) > 2) {
-            piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
+
+        if (arping) {
+          // some arping on the chords
+          if (ticks % 4 === 0) {
+            chordNotesPianoBass.map((note, idx) => {
+              const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
+              piano.triggerAttackRelease(note, "8n", time + timeOffset);
+            });
           }
         } else {
-          if (playNote && randomInt(10) > 8) {
-            piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
+          // chords together
+          if (ticks % 8 === 0) {
+            if (randomInt(10) > 2) {
+              piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
+            }
+          } else {
+            if (playNote && randomInt(10) > 8) {
+              piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
+            }
           }
         }
-      }
 
-      if (arping) {
-        if (ticks % 4 && playNote) {
-          // if we are "arpeggiating" pick one of the notes from the chord
-          // to avoid dissonance
-          note = chordNotesPiano[randomInt(chord.notes.length)];
-          piano.triggerAttackRelease(note, "8n", time);
+        if (arping) {
+          if (ticks % 4 && playNote) {
+            // if we are "arpeggiating" pick one of the notes from the chord
+            // to avoid dissonance
+            note = chordNotesPiano[randomInt(chord.notes.length)];
+            piano.triggerAttackRelease(note, "8n", time);
+          }
+        } else {
+          if (playNote) {
+            piano.triggerAttackRelease(
+              chordNotesPiano[randomInt(chordNotesPiano.length)],
+              durations[randomInt(durations.length)],
+              time
+            );
+          }
         }
-      } else {
-        if (playNote) {
-          piano.triggerAttackRelease(
-            chordNotesPiano[randomInt(chordNotesPiano.length)],
-            durations[randomInt(durations.length)],
-            time
-          );
-        }
-      }
-    }, "32n").start();
+      }, "32n").start();
+    });
   };
 
   const getNextNote = (currentNote) => {
@@ -208,8 +211,6 @@ export default function Home() {
   };
 
   const startPlayback = () => {
-    Tone.start();
-
     if (isPlaying) return;
     setIsPlaying(true);
 
