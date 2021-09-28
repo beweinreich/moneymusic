@@ -52,19 +52,85 @@ export default function Music() {
     if (!isPlaying) return;
     Tone.start();
     Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 100 + randomInt(20);
+    Tone.Transport.bpm.value = 20 + randomInt(20);
 
-    let i = 0;
-    new Tone.Loop((time) => {
-      const availableNotes = getAvailableNotes(key, i, "16n", initialSeed);
-      const notes = notesWithOctave(availableNotes, 4);
-      i++;
-      console.log(notes);
-    }, "16n").start();
+    const wave = new Tone.Waveform();
+    Tone.Master.connect(wave);
+
     // playCello();
-    // playPiano();
+    playPianoBass();
+    playPianoLead();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying]);
+
+  const setupInstrument = async (config, volume, enableReverb = true) => {
+    const instrument = new Tone.Sampler(config).toDestination();
+    instrument.volume.value = volume;
+
+    if (enableReverb) {
+      const reverb = new Tone.Reverb({
+        wet: 0.3,
+        decay: 30,
+      }).toDestination();
+      instrument.connect(reverb);
+    }
+
+    await Tone.loaded();
+
+    return instrument;
+  };
+
+  const playNotesWithRhythm = (instrument, notes, time) => {
+    if (randomInt(3) > 1) {
+      notes.map((note, idx) => {
+        const timeOffset = idx === 0 ? 0 : idx * Tone.Time(`16n`);
+        instrument.triggerAttackRelease(note, "16n", time + timeOffset);
+        console.log("note => ", note);
+      });
+    } else {
+      instrument.triggerAttackRelease(notes);
+    }
+  };
+
+  const playPianoBass = async () => {
+    const piano = await setupInstrument(pianoConfig, -10, true);
+
+    const octave = 3;
+    const duration = "4n";
+    let ticks = 0;
+    const loop = new Tone.Loop((time) => {
+      const availableNotes = getAvailableNotes(
+        key,
+        ticks,
+        duration,
+        initialSeed
+      );
+      const notes = notesWithOctave(availableNotes, octave);
+      playNotesWithRhythm(piano, notes, time);
+
+      ticks++;
+    }, duration).start();
+  };
+
+  const playPianoLead = async () => {
+    const piano = await setupInstrument(pianoConfig, -10, true);
+
+    const octave = 4;
+    const duration = "4n";
+    let ticks = 0;
+    const loop = new Tone.Loop((time) => {
+      const availableNotes = getAvailableNotes(
+        key,
+        ticks,
+        duration,
+        initialSeed
+      );
+      const notes = notesWithOctave(availableNotes, octave);
+      playNotesWithRhythm(piano, notes, time);
+
+      ticks++;
+    }, duration).start();
+  };
 
   useEffect(() => {
     document.addEventListener("keyup", function (event) {

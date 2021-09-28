@@ -88,7 +88,9 @@ const getAvailableNotes = (key, ticks, tickDuration, initialSeed) => {
 
 const notesWithOctave = (notes, octave) => {
   return notes.map((note, idx) => {
-    if (idx === notes.length - 1) octave = octave + 1;
+    // TODO: the notes are not always ascending
+    // ex: F4, A4, C4, E4 will start at F, go up to A, and then back down to C, and up to E
+
     return `${note}${octave}`;
   });
 };
