@@ -1,9 +1,9 @@
-const chordProgressions = [
-  [1, 5, 4, 5],
-  [1, 4, 2, 5],
-  [5, 4, 5, 4],
-  [1, 2, 5, 4],
-];
+const chordProgressions = {
+  0: [1, 5, 4, 5],
+  1: [1, 4, 2, 5],
+  2: [5, 4, 5, 4],
+  3: [1, 2, 5, 4],
+};
 
 const measuresPerProgression = 4;
 
@@ -22,30 +22,38 @@ const getCurrentChordProgression = (ticks, duration, seedNum) => {
 
   // First get the progression iteration we currently are on
   const currentIteration = getCurrentChordProgressionIteration(ticks, duration);
-  const numberChordProgressions = chordProgressions.length;
+  const numberChordProgressions = Object.keys(chordProgressions).length;
 
   // keeps the number coerced to available chord progressions
   const coercedIteration = currentIteration % numberChordProgressions;
+  console.log("Iteration: ", coercedIteration);
 
   /* Now we need to coerce the progression iteration to one of the available chordProgressions
-  /* This isn't really a good distribution... but for now, we'll deal with it
-  /* TODO: max this better distributed in "randomness"
+  /* This isn't really a good randomization... but for now, we'll deal with it
+  /* TODO: make this more "random"
   */
+  const seed = seedNum < 1 ? seedNum * 100 : seedNum;
+  const coercedSeedNum = seed % numberChordProgressions;
 
-  const shuffledProgressions = shuffle(chordProgressions, coercedIteration);
-  console.log(coercedIteration);
+  let shuffledProgressions = {};
+  const shuffledProgressionValues = shuffle(
+    Object.keys(chordProgressions),
+    coercedSeedNum
+  ).map((key) => chordProgressions[key]);
+
+  shuffledProgressionValues.forEach(
+    (item, idx) => (shuffledProgressions[idx] = item)
+  );
+
   return shuffledProgressions[coercedIteration];
 };
 
 function shuffle(array, randomInt) {
   let currentIndex = array.length;
 
-  // While there remain elements to shuffle...
   while (currentIndex != 0) {
-    // Pick a remaining element...
     currentIndex--;
 
-    // And swap it with the current element.
     [array[currentIndex], array[randomInt]] = [
       array[randomInt],
       array[currentIndex],

@@ -11,12 +11,7 @@ import { getCurrentChordProgression } from "../helpers/music-math";
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [seed, setSeed] = useState("apples");
-  const [seedNum, setSeedNum] = useState(0);
   const [playingText, setPlayingText] = useState("");
-
-  document.addEventListener("keyup", function (event) {
-    if (event.keyCode === 13) isPlaying ? pausePlayback() : startPlayback();
-  });
 
   const canvasWidth = 800,
     canvasHeight = 300;
@@ -43,7 +38,7 @@ export default function Home() {
     if (!isPlaying) return;
     Tone.start();
     Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 20 + randomInt(20);
+    Tone.Transport.bpm.value = 100 + randomInt(20);
 
     let i = 0;
     new Tone.Loop((time) => {
@@ -54,6 +49,12 @@ export default function Home() {
     // playCello();
     // playPiano();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying]);
+
+  useEffect(() => {
+    document.addEventListener("keyup", function (event) {
+      if (event.keyCode === 13) isPlaying ? pausePlayback() : startPlayback();
+    });
   }, [isPlaying]);
 
   const startPlayback = () => {
