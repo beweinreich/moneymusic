@@ -8,7 +8,17 @@ import { celloConfig, pianoConfig } from "../helpers/instruments";
 import { xmur3, sfc32, mulberry32 } from "../helpers/random";
 import { getCurrentChordProgression } from "../helpers/music-math";
 
-export default function Home() {
+export default function Music() {
+  /* Rules for creating music
+    - Each song has a set of chord progressions
+    - A given measure is defined by its chord progression
+    - A single chord in a progression can be a whole or half note duration
+    - For the duration of that chord, there are a set of playable notes
+    - Each instrument can play any of those notes with a select rhythm
+    - We should limit the number of arpeggios played simultaneously, to avoid dissonance
+    - Some measures could be silent for certain instruments
+    - Certain rhythms can be favored by certain instruments / BPM
+  */
   const [isPlaying, setIsPlaying] = useState(false);
   const [seed, setSeed] = useState("apples");
   const [playingText, setPlayingText] = useState("");
