@@ -8,7 +8,7 @@ const chordProgressions = {
   3: [1, 2, 5, 4],
 };
 
-const measuresPerProgression = 4;
+const measuresPerProgression = 1;
 const numberChordProgressions = Object.keys(chordProgressions).length;
 
 const getCurrentChordProgressionIteration = (ticks, tickDuration) => {

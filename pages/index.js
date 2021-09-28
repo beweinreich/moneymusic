@@ -38,7 +38,7 @@ export default function Home() {
     Tone.Transport.bpm.value = 20 + randomInt(20);
 
     playCello();
-    playPiano();
+    // playPiano();
   }, [isPlaying]);
 
   useEffect(() => {
@@ -65,11 +65,11 @@ export default function Home() {
     const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
 
     const reverb = new Tone.Reverb({
-      wet: 0.3,
+      wet: 0.4,
       decay: 30,
     }).toDestination();
 
-    cello.volume.value = -28;
+    cello.volume.value = -25;
     cello.chain(autoPanner, reverb);
 
     let noteLetter;
@@ -87,15 +87,20 @@ export default function Home() {
       const oneFour = [0, 3][randomInt(2)];
       let chord = Chord.get(scale[oneFour]);
       let chordNotes = chord.notes;
-      let chordNotesCello = chord.notes.map(
-        (note) => `${note}${octave - randomInt(2)}`
-      );
+      let chordNotesCello = chord.notes.map((note) => `${note}${octave - 1}`);
       const playNote = randomInt(10) > 2;
 
       if (ticks % 8 === 0) {
-        // if (randomInt(10) > 4) {
+        console.log(chordNotesCello);
         cello.triggerAttackRelease(chordNotesCello, "4n", time);
+        // cello.triggerAttackRelease("D#4", "4n", time);
+        // cello.triggerAttackRelease("B4", "4n", time);
+        // cello.triggerAttackRelease("E4", "4n", time);
+        // if (randomInt(10) > 4) {
+        //   console.log(note);
+        //   cello.triggerAttackRelease(chordNotesCello, "4n", time);
         // } else {
+        //   console.log(note);
         //   cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
         //   cello.triggerAttackRelease(
         //     chordNotesCello[1],

@@ -5,7 +5,7 @@ import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
 import { celloConfig, pianoConfig } from "../helpers/instruments";
-import { xmur3, sfc32, mulberry32 } from "../helpers/random";
+import { xmur3, sfc32, mulberry32, shuffle } from "../helpers/random";
 import {
   getCurrentChordProgression,
   getAvailableNotes,
@@ -22,6 +22,8 @@ export default function Music() {
     - We should limit the number of arpeggios played simultaneously, to avoid dissonance
     - Some measures could be silent for certain instruments
     - Certain rhythms can be favored by certain instruments / BPM
+
+    ... turns out this sounded too mechanical
   */
   const [isPlaying, setIsPlaying] = useState(false);
   const [seed, setSeed] = useState("apples");
@@ -52,7 +54,7 @@ export default function Music() {
     if (!isPlaying) return;
     Tone.start();
     Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 20 + randomInt(20);
+    Tone.Transport.bpm.value = 40 + randomInt(20);
 
     const piano = setupInstrument(pianoConfig, -10, true);
     const wave = new Tone.Waveform();
@@ -99,26 +101,32 @@ export default function Music() {
 
   const playNotesWithRhythm = (instrument, notes, time, arp = false) => {
     if (arp) {
-      notes.map((note, idx) => {
-        const timeOffset = idx === 0 ? 0 : idx * Tone.Time(`16n`);
-        instrument.triggerAttackRelease(note, "16n", time + timeOffset);
-        console.log("note => ", note);
+      const notesShuffled = shuffle(notes, randomInt(notes.length));
+
+      notesShuffled.map((note, idx) => {
+        const noteDuration = "16n";
+        const timeOffset = idx === 0 ? 0 : idx * Tone.Time(noteDuration);
+        // const playNote = randomInt(10) > 3;
+        // if (playNote)
+        instrument.triggerAttackRelease(note, "8n", time + timeOffset);
       });
     } else {
-      instrument.triggerAttackRelease(notes);
+      // const playNote = randomInt(10) > 2;
+      // if (playNote)
+      instrument.triggerAttackRelease(notes.slice(0, 3), "1n", time); // slicing it, since the 7th can be dissonant
     }
   };
 
   const playPianoBass = (instrument, availableNotes, time) => {
     const octave = 3;
     const notes = notesWithOctave(availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time);
+    playNotesWithRhythm(instrument, notes, time, true);
   };
 
   const playPianoLead = (instrument, availableNotes, time) => {
     const octave = 4;
     const notes = notesWithOctave(availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, true);
+    playNotesWithRhythm(instrument, notes, time, false);
   };
 
   useEffect(() => {
