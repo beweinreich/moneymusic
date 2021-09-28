@@ -2,7 +2,7 @@
 
 I don't even know. Something with crypto...
 
-- https://tonejs.github.io/
+https://moneymusic.vercel.app
 
 ## Instructions to run
 
