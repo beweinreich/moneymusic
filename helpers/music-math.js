@@ -87,10 +87,13 @@ const getAvailableNotes = (key, ticks, tickDuration, initialSeed) => {
   return notes;
 };
 
-const notesWithOctave = (notes, octave) => {
+const scale = ["C", "D", "E", "F", "G", "A", "B"];
+const notesWithOctave = (notes, octave, asc = true) => {
+  let prevIdx = -1;
   return notes.map((note, idx) => {
-    // TODO: the notes are not always ascending
-    // ex: F4, A4, C4, E4 will start at F, go up to A, and then back down to C, and up to E
+    const curIdx = scale.indexOf(note);
+    if (prevIdx > curIdx && asc) octave = octave + 1;
+    prevIdx = curIdx;
 
     return `${note}${octave}`;
   });

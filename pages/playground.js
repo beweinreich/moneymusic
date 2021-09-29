@@ -70,15 +70,35 @@ export default function Music() {
           time
         );
 
-        const availableNotes = getAvailableNotes(
-          key,
-          ticks,
-          duration,
-          initialSeed
-        );
-        playCello(cello, availableNotes, time);
-        playPianoBass(piano, availableNotes, time);
-        playPianoLead(piano, availableNotes, time);
+        // playCello(cello, availableNotes, time);
+        // const c = ["A", "C", "E"];
+        // const c = ["G", "B", "D"];
+        // const c = ["D", "G", "A"];
+        // console.log(chords[ticks]);
+
+        // const cs = ["C", "G", "Am", "F"];
+        // const cs = ["C", "C", "C", "C"];
+        // const c = Chord.get(cs[ticks % 4]).notes;
+        // console.log(c);
+        // const c = [
+        //   ["D", "F", "A"],
+        //   ["E", "G", "B"],
+        //   ["F", "A", "C"],
+        // ][ticks % 3];
+
+        const c = Chord.get(chords[ticks % scale.length]).notes.slice(0, 3);
+
+        playPianoBass(piano, c, time);
+
+        // let notes = ["B"]; //[scale[ticks]];
+        // let notes = [
+        //   scale[randomInt(scale.length)],
+        //   scale[randomInt(scale.length)],
+        //   scale[randomInt(scale.length)],
+        // ];
+        // let notes = [scale[3]];
+        // console.log(notes);
+        // if (notes) playPianoLead(piano, notes, time);
         ticks++;
       }, duration).start();
     });
@@ -107,26 +127,27 @@ export default function Music() {
       notesShuffled.map((note, idx) => {
         const noteDuration = "16n";
         const timeOffset = idx === 0 ? 0 : idx * Tone.Time(noteDuration);
-        const playNote = randomInt(10) > 3;
-        if (playNote)
-          instrument.triggerAttackRelease(note, "8n", time + timeOffset);
+        // const playNote = randomInt(10) > 3;
+        // if (playNote)
+        instrument.triggerAttackRelease(note, "8n", time + timeOffset);
       });
     } else {
-      const playNote = randomInt(10) > 2;
-      if (playNote)
-        instrument.triggerAttackRelease(notes.slice(0, 3), "2n", time); // slicing it, since the 7th can be dissonant
+      // const playNote = randomInt(10) > 2;
+      // if (playNote)
+      instrument.triggerAttackRelease(notes.slice(0, 3), "2n", time); // slicing it, since the 7th can be dissonant
     }
   };
 
   const playPianoBass = (instrument, availableNotes, time) => {
     const octave = 3;
     const notes = notesWithOctave(availableNotes, octave);
+    console.log(notes);
     playNotesWithRhythm(instrument, notes, time, false);
   };
 
   const playPianoLead = (instrument, availableNotes, time) => {
     const octave = 4;
-    const notes = notesWithOctave(availableNotes, octave, false);
+    const notes = notesWithOctave(availableNotes, octave);
     playNotesWithRhythm(instrument, notes, time, true);
   };
 
