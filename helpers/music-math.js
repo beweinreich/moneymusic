@@ -1,3 +1,4 @@
+import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
 import { shuffle } from "./random";
 
@@ -28,7 +29,7 @@ const getCurrentChordProgression = (ticks, tickDuration, initialSeed) => {
     tickDuration
   );
   const coercedIteration = currentIteration % numberChordProgressions;
-  console.log("Progression: ", coercedIteration);
+  // console.log("Progression: ", coercedIteration);
 
   const shuffled = shuffledChordProgressions(initialSeed);
   return shuffled[coercedIteration];
@@ -75,14 +76,14 @@ const getAvailableNotes = (key, ticks, tickDuration, initialSeed) => {
     initialSeed
   );
   const currentMeasure = getCurrentMeasure(ticks, tickDuration);
-  console.log("Measure: ", currentMeasure);
+  // console.log("Measure: ", currentMeasure);
 
   // subtract 1 to convert from music progressions to computer sci
   // i.e. a 5 chord is really the 4th index on a scale array
   const chordNum = currentChordProgression[currentMeasure] - 1;
   const chordName = key.chords[chordNum];
   const notes = Chord.get(chordName).notes;
-  console.log(notes);
+  // console.log(notes);
 
   return notes;
 };
@@ -99,4 +100,13 @@ const notesWithOctave = (notes, octave, asc = true) => {
   });
 };
 
-export { getCurrentChordProgression, getAvailableNotes, notesWithOctave };
+const noteSpace = (idx, noteDuration) => {
+  return idx === 0 ? 0 : idx * Tone.Time(noteDuration);
+};
+
+export {
+  noteSpace,
+  getCurrentChordProgression,
+  getAvailableNotes,
+  notesWithOctave,
+};

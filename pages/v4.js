@@ -10,7 +10,9 @@ import {
   getCurrentChordProgression,
   getAvailableNotes,
   notesWithOctave,
+  noteSpace,
 } from "../helpers/music-math";
+import { melodies } from "../helpers/melodies";
 
 export default function Music() {
   /* Rules for creating music
@@ -22,8 +24,6 @@ export default function Music() {
     - We should limit the number of arpeggios played simultaneously, to avoid dissonance
     - Some measures could be silent for certain instruments
     - Certain rhythms can be favored by certain instruments / BPM
-
-    ... turns out this sounded too mechanical
   */
   const [isPlaying, setIsPlaying] = useState(false);
   const [seed, setSeed] = useState("apples");
@@ -54,7 +54,7 @@ export default function Music() {
     if (!isPlaying) return;
     Tone.start();
     Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 80 + randomInt(20);
+    Tone.Transport.bpm.value = 40 + randomInt(20);
 
     const piano = setupInstrument(pianoConfig, -10, true);
     const cello = setupInstrument(celloConfig, -25, true);
@@ -76,7 +76,7 @@ export default function Music() {
           duration,
           initialSeed
         );
-        playCello(cello, availableNotes, time);
+        // playCello(cello, availableNotes, time);
         playPianoBass(piano, availableNotes, time);
         playPianoLead(piano, availableNotes, time);
         ticks++;
@@ -100,40 +100,67 @@ export default function Music() {
     return instrument;
   };
 
-  const playNotesWithRhythm = (instrument, notes, time, arp = false) => {
-    if (arp) {
-      const notesShuffled = shuffle(notes, randomInt(notes.length));
+  const playNotesWithRhythm = (
+    instrument,
+    notes,
+    time,
+    extra = {
+      arp: false, // spread the chord out
+      steady: false, // play all notes, no jitter
+      shuffle: false, // shuffle the order of the notes
+      slice7: true, // slice off the 7th
+      single: false, // play single note or full chord
+    }
+  ) => {
+    if (extra.slice7) {
+      notes = notes.slice(0, 3);
+    }
+    if (extra.shuffle) {
+      notes = shuffle(notes, randomInt(notes.length));
+    }
 
-      notesShuffled.map((note, idx) => {
-        const noteDuration = "16n";
-        const timeOffset = idx === 0 ? 0 : idx * Tone.Time(noteDuration);
-        const playNote = randomInt(10) > 3;
+    if (extra.arp) {
+      notes.map((note, idx) => {
+        const noteSpacing = "16n";
+        const timeOffset = noteSpace(idx, noteSpacing);
+
+        const playNote = extra.steady ? true : randomInt(10) > 3;
         if (playNote)
-          instrument.triggerAttackRelease(note, "8n", time + timeOffset);
+          instrument.triggerAttackRelease(note, "4n", time + timeOffset);
       });
     } else {
-      const playNote = randomInt(10) > 2;
-      if (playNote)
-        instrument.triggerAttackRelease(notes.slice(0, 3), "2n", time); // slicing it, since the 7th can be dissonant
+      const melodyNum = randomInt(melodies.length);
+      console.log(melodyNum);
+      melodies[melodyNum](instrument, notes, time, randomInt);
     }
   };
 
   const playPianoBass = (instrument, availableNotes, time) => {
     const octave = 3;
     const notes = notesWithOctave(availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, false);
+    playNotesWithRhythm(instrument, notes, time, {
+      arp: true,
+      steady: true,
+      slice7: false,
+    });
   };
 
   const playPianoLead = (instrument, availableNotes, time) => {
     const octave = 4;
     const notes = notesWithOctave(availableNotes, octave, false);
-    playNotesWithRhythm(instrument, notes, time, true);
+    playNotesWithRhythm(instrument, notes, time, {
+      arp: false,
+      single: true,
+      shuffle: true,
+    });
   };
 
   const playCello = (instrument, availableNotes, time) => {
     const octave = 3;
     const notes = notesWithOctave(availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, false);
+    playNotesWithRhythm(instrument, notes, time, {
+      arp: false,
+    });
   };
 
   useEffect(() => {

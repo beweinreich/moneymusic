@@ -151,43 +151,43 @@ export default function Home() {
         arping = !arping;
       }
 
-      if (arping) {
-        // some arping on the chords
-        if (ticks % 4 === 0) {
-          chordNotesPianoBass.map((note, idx) => {
-            const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
-            piano.triggerAttackRelease(note, "8n", time + timeOffset);
-          });
-        }
-      } else {
-        // chords together
-        if (ticks % 8 === 0) {
-          if (randomInt(10) > 2) {
-            piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
-          }
-        } else {
-          if (playNote && randomInt(10) > 8) {
-            piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
-          }
-        }
-      }
+      // if (arping) {
+      // some arping on the chords
+      // if (ticks % 4 === 0) {
+      //   chordNotesPianoBass.map((note, idx) => {
+      //     const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
+      //     piano.triggerAttackRelease(note, "8n", time + timeOffset);
+      //   });
+      // }
+      // } else {
+      //   // chords together
+      //   if (ticks % 8 === 0) {
+      //     if (randomInt(10) > 2) {
+      //       piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
+      //     }
+      //   } else {
+      //     if (playNote && randomInt(10) > 8) {
+      //       piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
+      //     }
+      //   }
+      // }
 
-      if (arping) {
-        if (ticks % 4 && playNote) {
-          // if we are "arpeggiating" pick one of the notes from the chord
-          // to avoid dissonance
-          note = chordNotesPiano[randomInt(chord.notes.length)];
-          piano.triggerAttackRelease(note, "8n", time);
-        }
-      } else {
-        if (playNote) {
-          piano.triggerAttackRelease(
-            chordNotesPiano[randomInt(chordNotesPiano.length)],
-            durations[randomInt(durations.length)],
-            time
-          );
-        }
+      // if (arping) {
+      if (ticks % 4 && playNote) {
+        // if we are "arpeggiating" pick one of the notes from the chord
+        // to avoid dissonance
+        note = chordNotesPiano[randomInt(chord.notes.length)];
+        piano.triggerAttackRelease(note, "8n", time);
       }
+      // } else {
+      //   if (playNote) {
+      //     piano.triggerAttackRelease(
+      //       chordNotesPiano[randomInt(chordNotesPiano.length)],
+      //       durations[randomInt(durations.length)],
+      //       time
+      //     );
+      //   }
+      // }
     }, "32n").start();
   };
 
