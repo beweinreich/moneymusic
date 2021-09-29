@@ -57,6 +57,7 @@ export default function Music() {
     Tone.Transport.bpm.value = 80 + randomInt(20);
 
     const piano = setupInstrument(pianoConfig, -10, true);
+    const cello = setupInstrument(celloConfig, -25, true);
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
@@ -75,7 +76,7 @@ export default function Music() {
           duration,
           initialSeed
         );
-        // playCello();
+        playCello(cello, availableNotes, time);
         playPianoBass(piano, availableNotes, time);
         playPianoLead(piano, availableNotes, time);
         ticks++;
@@ -101,7 +102,7 @@ export default function Music() {
 
   const playNotesWithRhythm = (instrument, notes, time, arp = false) => {
     if (arp) {
-      const notesShuffled = shuffle(notes.slice(0, 3), randomInt(notes.length));
+      const notesShuffled = shuffle(notes, randomInt(notes.length));
 
       notesShuffled.map((note, idx) => {
         const noteDuration = "16n";
@@ -113,7 +114,7 @@ export default function Music() {
     } else {
       // const playNote = randomInt(10) > 2;
       // if (playNote)
-      instrument.triggerAttackRelease(notes.slice(0, 3), "1n", time); // slicing it, since the 7th can be dissonant
+      instrument.triggerAttackRelease(notes.slice(0, 3), "2n", time); // slicing it, since the 7th can be dissonant
     }
   };
 
@@ -125,6 +126,12 @@ export default function Music() {
 
   const playPianoLead = (instrument, availableNotes, time) => {
     const octave = 4;
+    const notes = notesWithOctave(availableNotes, octave);
+    playNotesWithRhythm(instrument, notes, time, false);
+  };
+
+  const playCello = (instrument, availableNotes, time) => {
+    const octave = 3;
     const notes = notesWithOctave(availableNotes, octave);
     playNotesWithRhythm(instrument, notes, time, false);
   };
