@@ -107,27 +107,27 @@ export default function Music() {
       notesShuffled.map((note, idx) => {
         const noteDuration = "16n";
         const timeOffset = idx === 0 ? 0 : idx * Tone.Time(noteDuration);
-        // const playNote = randomInt(10) > 3;
-        // if (playNote)
-        instrument.triggerAttackRelease(note, "8n", time + timeOffset);
+        const playNote = randomInt(10) > 3;
+        if (playNote)
+          instrument.triggerAttackRelease(note, "8n", time + timeOffset);
       });
     } else {
-      // const playNote = randomInt(10) > 2;
-      // if (playNote)
-      instrument.triggerAttackRelease(notes.slice(0, 3), "2n", time); // slicing it, since the 7th can be dissonant
+      const playNote = randomInt(10) > 2;
+      if (playNote)
+        instrument.triggerAttackRelease(notes.slice(0, 3), "2n", time); // slicing it, since the 7th can be dissonant
     }
   };
 
   const playPianoBass = (instrument, availableNotes, time) => {
     const octave = 3;
     const notes = notesWithOctave(availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, true);
+    playNotesWithRhythm(instrument, notes, time, false);
   };
 
   const playPianoLead = (instrument, availableNotes, time) => {
     const octave = 4;
     const notes = notesWithOctave(availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, false);
+    playNotesWithRhythm(instrument, notes, time, true);
   };
 
   const playCello = (instrument, availableNotes, time) => {
