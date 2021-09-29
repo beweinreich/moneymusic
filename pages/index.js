@@ -5,18 +5,37 @@ import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
 import { celloConfig, pianoConfig } from "../helpers/instruments";
-import { xmur3, sfc32 } from "../helpers/random";
+import { xmur3, sfc32, mulberry32, shuffle } from "../helpers/random";
+import {
+  getCurrentChordProgression,
+  getAvailableNotes,
+  notesWithOctave,
+  noteSpace,
+} from "../helpers/music-math";
+import { melodies } from "../helpers/melodies";
 
-export default function Home() {
+export default function Music() {
+  /* Rules for creating music
+    - Each song has a set of chord progressions
+    - A given measure is defined by its chord progression
+    - A single chord in a progression can be a whole or half note duration
+    - For the duration of that chord, there are a set of playable notes
+    - Each instrument can play any of those notes with a select rhythm
+    - We should limit the number of arpeggios played simultaneously, to avoid dissonance
+    - Some measures could be silent for certain instruments
+    - Certain rhythms can be favored by certain instruments / BPM
+  */
   const [isPlaying, setIsPlaying] = useState(false);
-  const [seed, setSeed] = useState("doggy");
+  const [seed, setSeed] = useState("apples");
   const [playingText, setPlayingText] = useState("");
 
   const canvasWidth = 800,
     canvasHeight = 300;
 
   const seeder = xmur3(seed);
-  const rand = sfc32(seeder(), seeder(), seeder(), seeder());
+  const rand = mulberry32(seeder());
+  const initialSeed = rand();
+
   const randomInt = (max) => {
     // max number of options
     // ex: if max == 2, then options are 0, 1
@@ -35,173 +54,121 @@ export default function Home() {
     if (!isPlaying) return;
     Tone.start();
     Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 20 + randomInt(20);
+    Tone.Transport.bpm.value = 40 + randomInt(20);
 
-    // playCello();
-    playPiano();
-  }, [isPlaying]);
-
-  useEffect(() => {
-    var ctx = document.createElement("canvas").getContext("2d"),
-      dpr = window.devicePixelRatio || 1,
-      bsr =
-        ctx.webkitBackingStorePixelRatio ||
-        ctx.mozBackingStorePixelRatio ||
-        ctx.msBackingStorePixelRatio ||
-        ctx.oBackingStorePixelRatio ||
-        ctx.backingStorePixelRatio ||
-        1;
-    const ratio = dpr / bsr;
-    const can = document.getElementById("canvas");
-    can.width = canvasWidth * ratio;
-    can.height = canvasHeight * ratio;
-    can.style.width = canvasWidth + "px";
-    can.style.height = canvasHeight + "px";
-    can.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
-  }, []);
-
-  const playCello = async () => {
-    const cello = new Tone.Sampler(celloConfig).toDestination();
-    const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
-
-    const reverb = new Tone.Reverb({
-      wet: 0.3,
-      decay: 30,
-    }).toDestination();
-
-    cello.volume.value = -38;
-    cello.chain(autoPanner, reverb);
-
-    let noteLetter;
-    let octave = 4;
-    let arping = true;
-    let ticks = 0;
-
-    await Tone.loaded();
-    const loop = new Tone.Loop((time) => {
-      ticks++;
-
-      noteLetter = getNextNote(noteLetter);
-      let note = noteLetter + octave;
-
-      const oneFour = [0, 3][randomInt(2)];
-      let chord = Chord.get(scale[oneFour]);
-      let chordNotes = chord.notes;
-      let chordNotesCello = chord.notes.map(
-        (note) => `${note}${octave - randomInt(2)}`
-      );
-      const playNote = randomInt(10) > 2;
-
-      if (ticks % 8 === 0) {
-        // if (randomInt(10) > 4) {
-        cello.triggerAttackRelease(chordNotesCello, "4n", time);
-        // } else {
-        //   cello.triggerAttackRelease(chordNotesCello[0], "16n", time);
-        //   cello.triggerAttackRelease(
-        //     chordNotesCello[1],
-        //     "8n",
-        //     time + Tone.Time("16n")
-        //   );
-        // }
-      }
-    }, "32n").start();
-  };
-
-  const playPiano = async () => {
-    const piano = new Tone.Sampler(pianoConfig).toDestination();
-    const reverb = new Tone.Reverb({
-      wet: 0.3,
-      decay: 30,
-    }).toDestination();
-
-    piano.volume.value = -10;
-    piano.connect(reverb);
-
-    let noteLetter;
-    let octave = 4;
-    let arping = true;
-    let ticks = 0;
-
+    const piano = setupInstrument(pianoConfig, -10, true);
+    const cello = setupInstrument(celloConfig, -25, true);
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
-    await Tone.loaded();
-    const loop = new Tone.Loop((time) => {
-      ticks++;
+    Tone.loaded().then(() => {
+      const duration = "4n";
+      let ticks = 0;
+      new Tone.Loop((time) => {
+        Tone.Draw.schedule(
+          () => drawWaveform(wave, canvasWidth, canvasHeight),
+          time
+        );
 
-      noteLetter = getNextNote(noteLetter);
-      let note = noteLetter + octave;
+        const availableNotes = getAvailableNotes(
+          key,
+          ticks,
+          duration,
+          initialSeed
+        );
+        playCello(cello, availableNotes, time);
+        playPianoBass(piano, availableNotes, time);
+        playPianoLead(piano, availableNotes, time);
+        ticks++;
+      }, duration).start();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying]);
 
-      Tone.Draw.schedule(
-        () => drawWaveform(wave, canvasWidth, canvasHeight),
-        time
-      );
+  const setupInstrument = (config, volume, enableReverb = true) => {
+    const instrument = new Tone.Sampler(config).toDestination();
+    instrument.volume.value = volume;
 
-      const oneFour = [0, 3][randomInt(2)];
-      let chord = Chord.get(scale[oneFour]);
-      let chordNotes = chord.notes;
-      let chordNotesPianoBass = chord.notes.map(
-        (note) => `${note}${octave - 1}`
-      );
-      let chordNotesPiano = chord.notes.map((note) => `${note}${octave}`);
+    if (enableReverb) {
+      const reverb = new Tone.Reverb({
+        wet: 0.3,
+        decay: 30,
+      }).toDestination();
+      instrument.connect(reverb);
+    }
 
-      const playNote = randomInt(10) > 2;
-
-      if (ticks % 40 === 0) {
-        arping = !arping;
-      }
-
-      // if (arping) {
-      // some arping on the chords
-      // if (ticks % 4 === 0) {
-      //   chordNotesPianoBass.map((note, idx) => {
-      //     const timeOffset = idx === 0 ? 0 : Tone.Time(`${idx * 16}n`);
-      //     piano.triggerAttackRelease(note, "8n", time + timeOffset);
-      //   });
-      // }
-      // } else {
-      //   // chords together
-      //   if (ticks % 8 === 0) {
-      //     if (randomInt(10) > 2) {
-      //       piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
-      //     }
-      //   } else {
-      //     if (playNote && randomInt(10) > 8) {
-      //       piano.triggerAttackRelease(chordNotesPianoBass, "1n", time);
-      //     }
-      //   }
-      // }
-
-      // if (arping) {
-      if (ticks % 4 && playNote) {
-        // if we are "arpeggiating" pick one of the notes from the chord
-        // to avoid dissonance
-        note = chordNotesPiano[randomInt(chord.notes.length)];
-        piano.triggerAttackRelease(note, "8n", time);
-      }
-      // } else {
-      //   if (playNote) {
-      //     piano.triggerAttackRelease(
-      //       chordNotesPiano[randomInt(chordNotesPiano.length)],
-      //       durations[randomInt(durations.length)],
-      //       time
-      //     );
-      //   }
-      // }
-    }, "32n").start();
+    return instrument;
   };
 
-  const getNextNote = (currentNote) => {
-    if (!currentNote) return keyLetter;
+  const playNotesWithRhythm = (
+    instrument,
+    notes,
+    time,
+    extra = {
+      arp: false, // spread the chord out
+      steady: false, // play all notes, no jitter
+      shuffle: false, // shuffle the order of the notes
+      slice7: true, // slice off the 7th
+      single: false, // play single note or full chord
+    }
+  ) => {
+    if (extra.slice7) {
+      notes = notes.slice(0, 3);
+    }
+    if (extra.shuffle) {
+      notes = shuffle(notes, randomInt(notes.length));
+    }
 
-    const currentIndex = scale.indexOf(currentNote);
-    const isPositive = randomInt(2) === 1;
+    if (extra.arp) {
+      notes.map((note, idx) => {
+        const noteSpacing = "16n";
+        const timeOffset = noteSpace(idx, noteSpacing);
 
-    let nextIndex = currentIndex + randomInt(3) * (isPositive ? 1 : -1);
-
-    if (nextIndex >= scale.length || nextIndex < 0) nextIndex = currentIndex;
-    return scale[nextIndex];
+        const playNote = extra.steady ? true : randomInt(10) > 3;
+        if (playNote)
+          instrument.triggerAttackRelease(note, "4n", time + timeOffset);
+      });
+    } else {
+      const melodyNum = randomInt(melodies.length);
+      console.log(melodyNum);
+      melodies[melodyNum](instrument, notes, time, randomInt);
+    }
   };
+
+  const playPianoBass = (instrument, availableNotes, time) => {
+    const octave = 3;
+    const notes = notesWithOctave(availableNotes, octave);
+    playNotesWithRhythm(instrument, notes, time, {
+      arp: true,
+      steady: true,
+      slice7: false,
+    });
+  };
+
+  const playPianoLead = (instrument, availableNotes, time) => {
+    const octave = 4;
+    const notes = notesWithOctave(availableNotes, octave, false);
+    playNotesWithRhythm(instrument, notes, time, {
+      arp: false,
+      steady: false,
+      single: true,
+      shuffle: true,
+    });
+  };
+
+  const playCello = (instrument, availableNotes, time) => {
+    const octave = 3;
+    const notes = notesWithOctave(availableNotes, octave);
+    playNotesWithRhythm(instrument, notes, time, {
+      arp: false,
+    });
+  };
+
+  useEffect(() => {
+    document.addEventListener("keyup", function (event) {
+      if (event.keyCode === 13) isPlaying ? pausePlayback() : startPlayback();
+    });
+  }, [isPlaying]);
 
   const startPlayback = () => {
     if (isPlaying) return;
@@ -239,18 +206,6 @@ export default function Home() {
         height={canvasHeight}
         style={{ backgroundColor: "black", borderRadius: 20 }}
       ></canvas>
-      {/*<div
-        dangerouslySetInnerHTML={{ __html: playingText }}
-        style={{
-          overflow: "scroll",
-          height: 200,
-          width: 400,
-          backgroundColor: "black",
-          color: "white",
-          borderRadius: 20,
-          padding: 20,
-        }}
-      />*/}
     </div>
   );
 }

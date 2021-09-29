@@ -76,7 +76,7 @@ export default function Music() {
           duration,
           initialSeed
         );
-        // playCello(cello, availableNotes, time);
+        playCello(cello, availableNotes, time);
         playPianoBass(piano, availableNotes, time);
         playPianoLead(piano, availableNotes, time);
         ticks++;
@@ -150,6 +150,7 @@ export default function Music() {
     const notes = notesWithOctave(availableNotes, octave, false);
     playNotesWithRhythm(instrument, notes, time, {
       arp: false,
+      steady: false,
       single: true,
       shuffle: true,
     });
