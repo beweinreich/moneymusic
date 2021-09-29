@@ -2,13 +2,13 @@ import { Scale, Chord, Key } from "@tonaljs/tonal";
 import { shuffle } from "./random";
 
 const chordProgressions = {
-  0: [1, 5, 4, 5],
-  1: [1, 4, 2, 5],
-  2: [5, 4, 5, 4],
-  3: [1, 2, 5, 4],
+  0: [1, 5, 6, 4],
+  1: [6, 5, 4, 5],
+  1: [1, 4, 6, 5],
+  2: [1, 6, 2, 5],
 };
 
-const measuresPerProgression = 1;
+const measuresPerProgression = 4;
 const numberChordProgressions = Object.keys(chordProgressions).length;
 
 const getCurrentChordProgressionIteration = (ticks, tickDuration) => {
@@ -80,8 +80,9 @@ const getAvailableNotes = (key, ticks, tickDuration, initialSeed) => {
   // subtract 1 to convert from music progressions to computer sci
   // i.e. a 5 chord is really the 4th index on a scale array
   const chordNum = currentChordProgression[currentMeasure] - 1;
-  const rootNote = key.scale[chordNum];
-  const notes = Chord.get(`${rootNote}maj7`).notes;
+  const chordName = key.chords[chordNum];
+  const notes = Chord.get(chordName).notes;
+  console.log(notes);
 
   return notes;
 };
