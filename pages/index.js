@@ -70,12 +70,8 @@ export default function Music() {
       const duration = `${timeSignature}n`;
       let rhythm = rhythms[randomInt(rhythms.length)];
       let ticks = 0;
-      new Tone.Loop((time) => {
-        Tone.Draw.schedule(
-          () => drawWaveform(wave, canvasWidth, canvasHeight),
-          time
-        );
 
+      new Tone.Loop((time) => {
         if (ticks % (timeSignature * 8) === 0)
           rhythm = rhythms[randomInt(rhythms.length)];
 
@@ -94,6 +90,13 @@ export default function Music() {
         ticks++;
       }, "4n").start();
     });
+
+    new Tone.Loop((time) => {
+      Tone.Draw.schedule(
+        () => drawWaveform(wave, canvasWidth, canvasHeight),
+        time
+      );
+    }, "32n").start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying]);
 
