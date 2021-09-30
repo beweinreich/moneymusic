@@ -55,4 +55,20 @@ function constrain(n, low, high) {
 const randomColor = () =>
   `#${Math.floor(Math.random() * 16777215).toString(16)}`;
 
-export { drawWaveform, clearCanvas };
+function fixDpi() {
+  const dpi = window.devicePixelRatio;
+  const canvas = document.getElementById("canvas");
+
+  let style = {
+    height() {
+      return +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
+    },
+    width() {
+      return +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
+    },
+  };
+
+  canvas.setAttribute("width", style.width() * dpi);
+  canvas.setAttribute("height", style.height() * dpi);
+}
+export { drawWaveform, clearCanvas, fixDpi };
