@@ -37,7 +37,7 @@ export default function Music() {
   const [playingText, setPlayingText] = useState("");
 
   const canvasWidth = 800,
-    canvasHeight = 300;
+    canvasHeight = 150;
 
   const seeder = xmur3(seed);
   const rand = mulberry32(seeder());
@@ -96,7 +96,7 @@ export default function Music() {
         () => drawWaveform(wave, canvasWidth, canvasHeight),
         time
       );
-    }, "32n").start();
+    }, "64n").start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying]);
 
@@ -207,23 +207,40 @@ export default function Music() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Money Music</title>
+        <title>dotwav</title>
         <meta name="description" content="Making money with music" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <p>Lets make some money making music</p>
+      <div>
+        <img src="/dotwav.png" style={{ height: 100, marginBottom: 20 }} />
+      </div>
       <input
         type="text"
         value={seed}
         onChange={(val) => setSeed(val.target.value)}
+        className={styles.input}
       />
       <p />
-      <button onClick={startPlayback}>Play</button>
-      <button onClick={pausePlayback}>Stop</button>
+      <div className={{}}>
+        <button
+          onClick={pausePlayback}
+          className={styles.button}
+          style={{ opacity: isPlaying ? 1 : 0.2 }}
+        >
+          Stop
+        </button>
+        <button
+          onClick={startPlayback}
+          className={styles.button}
+          style={{ opacity: isPlaying ? 0.2 : 1 }}
+        >
+          Play
+        </button>
+      </div>
       <p />
-      <p>
+      {/*<p>
         In the key of {keyLetter}. Time signature: {timeSignature}/4
-      </p>
+      </p>*/}
       <canvas
         id="canvas"
         width={canvasWidth}
