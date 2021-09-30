@@ -20,6 +20,7 @@ import {
 import { melodies, arpeggio } from "../helpers/melodies";
 import { drawWaveform, clearCanvas } from "../helpers/draw";
 import { rhythms } from "../helpers/rhythms";
+import useWindowDimensions from "../helpers/window-dimensions";
 
 export default function Music() {
   /* Rules for creating music
@@ -36,8 +37,9 @@ export default function Music() {
   const [seed, setSeed] = useState("bcadewo");
   const [playingText, setPlayingText] = useState("");
 
-  const canvasWidth = 800,
-    canvasHeight = 150;
+  const canvasHeight = 150;
+  const [canvasWidth, setCanvasWidth] = useState(null);
+  const { width } = useWindowDimensions();
 
   const seeder = xmur3(seed);
   const rand = mulberry32(seeder());
@@ -52,6 +54,8 @@ export default function Music() {
   const keyLetter = keys[randomInt(keys.length)];
   const key = Key.majorKey(keyLetter);
   const timeSignature = 4; //[3, 4][randomInt(2)];
+
+  useEffect(() => setCanvasWidth(width), [width]);
 
   useEffect(() => {
     if (!isPlaying) return;
