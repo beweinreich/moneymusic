@@ -4,6 +4,11 @@ I don't even know. Something with crypto...
 
 https://moneymusic.vercel.app
 
+--
+
+Instruments obtained from:
+https://github.com/nbrosowsky/tonejs-instruments/tree/master/samples
+
 ## Instructions to run
 
 First, run the development server:
