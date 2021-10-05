@@ -63,7 +63,7 @@ export default function Music() {
   };
 
   const calculateBpm = (block, nextBlock) => {
-    const maxTransactionsPerBlock = 400;
+    const maxTransactionsPerBlock = 300;
 
     const transactions = block.transactions;
     const scaleTransactions = Math.floor(
