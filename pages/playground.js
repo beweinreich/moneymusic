@@ -20,6 +20,11 @@ import {
 import { melodies, arpeggio } from "../helpers/melodies";
 import { drawWaveform, clearCanvas } from "../helpers/draw";
 import { rhythms } from "../helpers/rhythms";
+import {
+  getExampleBlock,
+  secondsUntilNextBlock,
+  getBlockBpm,
+} from "../helpers/blocks";
 import useWindowDimensions from "../helpers/window-dimensions";
 
 export default function Music() {
@@ -34,16 +39,8 @@ export default function Music() {
     - Certain rhythms can be favored by certain instruments / BPM
   */
   const [isPlaying, setIsPlaying] = useState(false);
-  const [block, setBlock] = useState({
-    height: 1,
-    timestamp: new Date(),
-    transactions: 50,
-  });
-  const [nextBlock, setNextBlock] = useState({
-    height: 1,
-    timestamp: new Date(new Date().getTime() + 30000),
-    transactions: 200,
-  });
+  const [blockIdx, setBlockIdx] = useState(0);
+  const [blocks, setBlocks] = useState([]);
   const [playingText, setPlayingText] = useState("");
   const [toneMeta, setToneMeta] = useState({ ticks: 0, time: Tone.Time() });
   const [key, setKey] = useState(null);
@@ -57,63 +54,58 @@ export default function Music() {
     return Math.floor(randomNum * numOptions);
   };
 
-  const secondsUntilNextBlock = (block1, block2) => {
-    const diff = block2.timestamp.getTime() - block1.timestamp.getTime();
-    return Math.abs(diff / 1000);
-  };
-
-  const calculateBpm = (block, nextBlock) => {
-    const maxTransactionsPerBlock = 300;
-
-    const transactions = block.transactions;
-    const scaleTransactions = Math.floor(
-      (transactions / maxTransactionsPerBlock) * 100
-    );
-    const newBpm = 20 + Math.min(scaleTransactions, 40);
-
-    return newBpm;
-  };
-
   /*                   Used for simulation                       */
   /***************************************************************/
-  useEffect(() => {
-    setTimeout(() => setBlock(nextBlock), 13000);
-  }, [nextBlock]);
+  const fetchBlocks = async () => {
+    const newBlocks = Array(10).fill(getExampleBlock());
+    setBlocks((blocks) => blocks.concat(newBlocks));
+    console.log("fetching blocks");
+  };
 
   useEffect(() => {
-    setInterval(() => {
-      setNextBlock((nb) => ({
-        height: nb.height + 1,
-        timestamp: new Date(new Date().getTime() + 30000),
-        transactions: Math.floor(Math.random() * 100),
-      }));
-    }, 13000);
+    setInterval(() => setBlockIdx((bi) => bi + 1), 5000);
   }, []);
   /*                   Used for simulation                       */
   /***************************************************************/
 
   useEffect(() => {
+    const blocksLength = blocks.length;
+    const percentComplete = (blockIdx / blocksLength) * 100;
+
+    if (percentComplete > 50) fetchBlocks();
+    console.log("block idx", blockIdx, blocks);
+  }, [blocks, blockIdx]);
+
+  useEffect(() => {
     // change key signature every 10,000 blocks
     // based on blockHeight
+    if (blocks.length === 0) return;
+
+    const block = blocks[blockIdx];
+
     const idx = Math.floor((block.height / 10000) % 7);
 
     const keys = ["A", "B", "C", "D", "E", "F", "G"];
     const keyLetter = keys[idx];
 
     setKey(Key.majorKey(keyLetter));
-  }, [block]);
+  }, [blockIdx]);
 
   useEffect(() => {
     // change tempo every block
     // based on # of transactions per block
+    if (blocks.length === 0) return;
+
+    const block = blocks[blockIdx];
+    const nextBlock = blocks[blockIdx + 1];
     const seconds = secondsUntilNextBlock(block, nextBlock);
 
     if (seconds >= 10) {
-      const newBpm = calculateBpm(block, nextBlock);
+      const newBpm = getBlockBpm(block, nextBlock);
       console.log("changing BPM to", newBpm);
       Tone.Transport.bpm.rampTo(newBpm, 3);
     }
-  }, [block]);
+  }, [blockIdx]);
 
   useEffect(() => {
     // play music on every tick of the loop
@@ -134,7 +126,7 @@ export default function Music() {
     Tone.start();
     setIsPlaying(true);
     Tone.Transport.start();
-    Tone.Transport.bpm.value = 60;
+    // Tone.Transport.bpm.value = getBlockBpm(blockId, nextBlock);
   };
 
   const pausePlayback = () => {
