@@ -4,7 +4,12 @@ import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
-import { celloConfig, pianoConfig, drumConfig } from "../helpers/instruments";
+import {
+  celloConfig,
+  pianoConfig,
+  drumConfig,
+  violinConfig,
+} from "../helpers/instruments";
 import { xmur3, sfc32, mulberry32, shuffle } from "../helpers/random";
 import {
   getCurrentChordProgression,
@@ -12,9 +17,10 @@ import {
   notesWithOctave,
   noteSpace,
 } from "../helpers/music-math";
-import { melodies } from "../helpers/melodies";
-import { drawWaveform } from "../helpers/draw";
+import { melodies, arpeggio } from "../helpers/melodies";
+import { drawWaveform, clearCanvas } from "../helpers/draw";
 import { rhythms } from "../helpers/rhythms";
+import useWindowDimensions from "../helpers/window-dimensions";
 
 export default function Music() {
   /* Rules for creating music
@@ -28,165 +34,98 @@ export default function Music() {
     - Certain rhythms can be favored by certain instruments / BPM
   */
   const [isPlaying, setIsPlaying] = useState(false);
-  const [seed, setSeed] = useState("bcadewqgyrexa");
+  const [block, setBlock] = useState({
+    height: 1,
+    timestamp: new Date(),
+    transactions: 50,
+  });
+  const [nextBlock, setNextBlock] = useState({
+    height: 1,
+    timestamp: new Date(new Date().getTime() + 30000),
+    transactions: 200,
+  });
   const [playingText, setPlayingText] = useState("");
+  const [toneMeta, setToneMeta] = useState({ ticks: 0, time: Tone.Time() });
+  const [keyLetter, setKeyLetter] = useState("C");
 
-  const canvasWidth = 800,
-    canvasHeight = 300;
+  const canvasHeight = 150;
+  const [canvasWidth, setCanvasWidth] = useState(null);
+  const { width } = useWindowDimensions();
+  const rand = (seed) => mulberry32(xmur3(seed)());
 
-  const seeder = xmur3(seed);
-  const rand = mulberry32(seeder());
-  const initialSeed = rand();
+  const keys = ["A", "B", "C", "D", "E", "F", "G"];
 
-  const randomInt = (numOptions) => {
-    const randomNum = rand();
+  const randomInt = (numOptions, randomNum) => {
     return Math.floor(randomNum * numOptions);
   };
 
-  const keys = ["A", "B", "C", "D", "E", "F", "G"];
-  const keyLetter = keys[randomInt(keys.length)];
-  const key = Key.majorKey(keyLetter);
-  const timeSignature = 4; // [3, 4][randomInt(2)];
+  const secondsUntilNextBlock = (block1, block2) => {
+    const diff = block2.timestamp.getTime() - block1.timestamp.getTime();
+    return Math.abs(diff / 1000);
+  };
+
+  useEffect(() => {
+    setTimeout(() => setBlock(nextBlock), 5000);
+  }, [nextBlock]);
+
+  useEffect(() => {
+    setInterval(() => {
+      setNextBlock((nb) => ({
+        height: nb.height + 1,
+        timestamp: new Date(new Date().getTime() + 30000),
+        transactions: Math.floor(Math.random() * 100),
+      }));
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    // change key signature every 10,000 blocks
+    // based on blockHeight
+
+    const idx = Math.floor((block.height / 10000) % 7);
+    setKeyLetter(keys[idx]);
+  }, [block, keys]);
+
+  useEffect(() => {
+    // change tempo every block
+    // based on # of transactions per block
+    // assumes 500 transactions per block is "max"
+    const maxTransactionsPerBlock = 500;
+
+    const transactions = block.transactions;
+    const scaleTransactions = Math.floor(
+      (transactions / maxTransactionsPerBlock) * 100
+    );
+    const newBpm = 20 + scaleTransactions;
+
+    // ramp to bpm, over X seconds
+    const seconds = secondsUntilNextBlock(block, nextBlock);
+    if (seconds > 10) Tone.Transport.bpm.rampTo(newBpm, 3);
+
+    console.log(newBpm);
+  }, [block]);
+
+  useEffect(() => {
+    // play music on every tick of the loop
+
+    console.log(keyLetter, toneMeta);
+  }, [toneMeta]);
 
   useEffect(() => {
     if (!isPlaying) return;
-    Tone.start();
-    Tone.Transport.cancel();
-    Tone.Transport.bpm.value = 30;
 
-    const piano = setupInstrument(pianoConfig, -10, true, false);
-    const cello = setupInstrument(celloConfig, -28, true, true);
-    const drums = setupInstrument(drumConfig, -10, true, false);
-    const wave = new Tone.Waveform();
-    Tone.Master.connect(wave);
+    const loop = new Tone.Loop((time) => {
+      setToneMeta((tm) => ({ ticks: tm.ticks + 1, time: time }));
+    }, "4n").start();
 
-    Tone.loaded().then(() => {
-      const duration = `${timeSignature}n`;
-      let rhythm;
-      let ticks = 0;
-      new Tone.Loop((time) => {
-        Tone.Draw.schedule(
-          () => drawWaveform(wave, canvasWidth, canvasHeight),
-          time
-        );
-
-        if (ticks % (timeSignature * 8) === 0)
-          rhythm = rhythms[randomInt(rhythms.length)];
-
-        const availableNotes = getAvailableNotes(
-          key,
-          ticks,
-          duration,
-          initialSeed
-        );
-        // playDrums(drums, time);
-        playCello(cello, availableNotes, time, rhythm.cello);
-        playPianoBass(piano, availableNotes, time, rhythm.pianoBass);
-        playPianoLead(piano, availableNotes, time, rhythm.pianoLead);
-        ticks++;
-      }, "4n").start();
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying]);
-
-  const setupInstrument = (
-    config,
-    volume,
-    enableReverb = true,
-    enablePanner = false
-  ) => {
-    const instrument = new Tone.Sampler(config).toDestination();
-    instrument.volume.value = volume;
-
-    if (enableReverb) {
-      const reverb = new Tone.Reverb({
-        wet: 0.3,
-        decay: 30,
-      }).toDestination();
-      instrument.connect(reverb);
-    }
-
-    if (enablePanner) {
-      const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
-      instrument.connect(autoPanner);
-    }
-
-    return instrument;
-  };
-
-  const playNotesWithRhythm = (
-    instrument,
-    notes,
-    time,
-    extra = {
-      arp: false, // spread the chord out
-      arpSteady: false, // play all notes in arpeggio, no jitter
-      shuffle: false, // shuffle the order of the notes
-      slice7: true, // slice off the 7th
-    }
-  ) => {
-    if (extra.slice7) notes = notes.slice(0, 3);
-    if (extra.shuffle) notes = shuffle(notes, randomInt(notes.length));
-
-    if (extra.arp) {
-      if (timeSignature === 3) notes.slice(0, 3); // if we're in 3/4 timesignature, only roll 3 notes
-      notes.map((note, idx) => {
-        const noteSpacing = `${timeSignature * timeSignature}n`;
-        const timeOffset = noteSpace(idx, noteSpacing);
-
-        const playNote = extra.arpSteady ? true : randomInt(10) > 2;
-        if (playNote) {
-          instrument.triggerAttackRelease(note, "4n", time + timeOffset);
-        } else if (randomInt(10) > 4) {
-          // no note? let's play a chord
-          melodies[5](instrument, notes, time, randomInt, timeSignature);
-        }
-      });
-    } else {
-      const melodyNum = randomInt(melodies.length);
-      melodies[melodyNum](instrument, notes, time, randomInt, timeSignature);
-    }
-  };
-
-  const playPianoBass = (instrument, availableNotes, time, rhythm) => {
-    if (rhythm.silent) return;
-
-    const octave = rhythm.octave;
-    const notes = notesWithOctave(key, availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, rhythm);
-  };
-
-  const playPianoLead = (instrument, availableNotes, time, rhythm) => {
-    if (rhythm.silent) return;
-
-    const octave = rhythm.octave;
-    const notes = notesWithOctave(key, availableNotes, octave, false);
-    playNotesWithRhythm(instrument, notes, time, rhythm);
-  };
-
-  const playCello = (instrument, availableNotes, time, rhythm) => {
-    if (rhythm.silent) return;
-
-    const octave = rhythm.octave;
-    const notes = notesWithOctave(key, availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, rhythm);
-  };
-
-  const playDrums = (instrument, time) => {
-    instrument.triggerAttackRelease("D4", "4n", time);
-  };
-
-  useEffect(() => {
-    document.addEventListener("keyup", function (event) {
-      if (event.keyCode === 13) isPlaying ? pausePlayback() : startPlayback();
-    });
+    return () => loop.stop();
   }, [isPlaying]);
 
   const startPlayback = () => {
-    if (isPlaying) return;
+    Tone.start();
     setIsPlaying(true);
-
     Tone.Transport.start();
+    Tone.Transport.bpm.value = 60;
   };
 
   const pausePlayback = () => {
@@ -195,31 +134,21 @@ export default function Music() {
   };
 
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Money Music</title>
-        <meta name="description" content="Making money with music" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <p>Lets make some money making music</p>
-      <input
-        type="text"
-        value={seed}
-        onChange={(val) => setSeed(val.target.value)}
-      />
-      <p />
-      <button onClick={startPlayback}>Play</button>
-      <button onClick={pausePlayback}>Stop</button>
-      <p />
-      <p>
-        In the key of {keyLetter}. Time signature: {timeSignature}/4
-      </p>
-      <canvas
-        id="canvas"
-        width={canvasWidth}
-        height={canvasHeight}
-        style={{ backgroundColor: "black", borderRadius: 20 }}
-      ></canvas>
+    <div className={{}}>
+      <button
+        onClick={pausePlayback}
+        className={styles.button}
+        style={{ opacity: isPlaying ? 1 : 0.2 }}
+      >
+        Stop
+      </button>
+      <button
+        onClick={startPlayback}
+        className={styles.button}
+        style={{ opacity: isPlaying ? 0.2 : 1 }}
+      >
+        Play
+      </button>
     </div>
   );
 }
