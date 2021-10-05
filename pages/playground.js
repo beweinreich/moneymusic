@@ -46,14 +46,12 @@ export default function Music() {
   });
   const [playingText, setPlayingText] = useState("");
   const [toneMeta, setToneMeta] = useState({ ticks: 0, time: Tone.Time() });
-  const [keyLetter, setKeyLetter] = useState("C");
+  const [key, setKey] = useState(null);
 
   const canvasHeight = 150;
   const [canvasWidth, setCanvasWidth] = useState(null);
   const { width } = useWindowDimensions();
   const rand = (seed) => mulberry32(xmur3(seed)());
-
-  const keys = ["A", "B", "C", "D", "E", "F", "G"];
 
   const randomInt = (numOptions, randomNum) => {
     return Math.floor(randomNum * numOptions);
@@ -64,8 +62,22 @@ export default function Music() {
     return Math.abs(diff / 1000);
   };
 
+  const calculateBpm = (block, nextBlock) => {
+    const maxTransactionsPerBlock = 400;
+
+    const transactions = block.transactions;
+    const scaleTransactions = Math.floor(
+      (transactions / maxTransactionsPerBlock) * 100
+    );
+    const newBpm = 20 + Math.min(scaleTransactions, 40);
+
+    return newBpm;
+  };
+
+  /*                   Used for simulation                       */
+  /***************************************************************/
   useEffect(() => {
-    setTimeout(() => setBlock(nextBlock), 5000);
+    setTimeout(() => setBlock(nextBlock), 13000);
   }, [nextBlock]);
 
   useEffect(() => {
@@ -75,40 +87,37 @@ export default function Music() {
         timestamp: new Date(new Date().getTime() + 30000),
         transactions: Math.floor(Math.random() * 100),
       }));
-    }, 5000);
+    }, 13000);
   }, []);
+  /*                   Used for simulation                       */
+  /***************************************************************/
 
   useEffect(() => {
     // change key signature every 10,000 blocks
     // based on blockHeight
-
     const idx = Math.floor((block.height / 10000) % 7);
-    setKeyLetter(keys[idx]);
-  }, [block, keys]);
+
+    const keys = ["A", "B", "C", "D", "E", "F", "G"];
+    const keyLetter = keys[idx];
+
+    setKey(Key.majorKey(keyLetter));
+  }, [block]);
 
   useEffect(() => {
     // change tempo every block
     // based on # of transactions per block
-    // assumes 500 transactions per block is "max"
-    const maxTransactionsPerBlock = 500;
-
-    const transactions = block.transactions;
-    const scaleTransactions = Math.floor(
-      (transactions / maxTransactionsPerBlock) * 100
-    );
-    const newBpm = 20 + scaleTransactions;
-
-    // ramp to bpm, over X seconds
     const seconds = secondsUntilNextBlock(block, nextBlock);
-    if (seconds > 10) Tone.Transport.bpm.rampTo(newBpm, 3);
 
-    console.log(newBpm);
+    if (seconds >= 10) {
+      const newBpm = calculateBpm(block, nextBlock);
+      console.log("changing BPM to", newBpm);
+      Tone.Transport.bpm.rampTo(newBpm, 3);
+    }
   }, [block]);
 
   useEffect(() => {
     // play music on every tick of the loop
-
-    console.log(keyLetter, toneMeta);
+    console.log(key, toneMeta);
   }, [toneMeta]);
 
   useEffect(() => {
