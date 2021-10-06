@@ -1,10 +1,11 @@
-import react, { useEffect, useState } from "react";
+import react, { useEffect, useState, useRef } from "react";
 import Head from "next/head";
 import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
 import {
+  setupInstrument,
   celloConfig,
   pianoConfig,
   drumConfig,
@@ -38,18 +39,25 @@ export default function Music() {
     - Some measures could be silent for certain instruments
     - Certain rhythms can be favored by certain instruments / BPM
   */
+
+  /* music stuff */
+  const [buffering, setBuffering] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [blockIdx, setBlockIdx] = useState(0);
   const [blocks, setBlocks] = useState([]);
   const [playingText, setPlayingText] = useState("");
   const [toneMeta, setToneMeta] = useState({ ticks: 0, time: Tone.Time() });
   const [key, setKey] = useState(null);
+  const loop = useRef();
+  const timeSignature = 4;
 
+  /* drawing stuff */
   const canvasHeight = 150;
   const [canvasWidth, setCanvasWidth] = useState(null);
   const { width } = useWindowDimensions();
-  const rand = (seed) => mulberry32(xmur3(seed)());
 
+  /* random stuff */
+  const rand = (seed) => mulberry32(xmur3(seed)());
   const randomInt = (numOptions, randomNum) => {
     return Math.floor(randomNum * numOptions);
   };
@@ -57,44 +65,56 @@ export default function Music() {
   /*                   Used for simulation                       */
   /***************************************************************/
   const fetchBlocks = async () => {
-    const newBlocks = Array(10).fill(getExampleBlock());
-    setBlocks((blocks) => blocks.concat(newBlocks));
-    console.log("fetching blocks");
+    setTimeout(() => {
+      const newBlocks = [
+        getExampleBlock(),
+        getExampleBlock(),
+        getExampleBlock(),
+        getExampleBlock(),
+        getExampleBlock(),
+      ];
+      setBlocks((blocks) => blocks.concat(newBlocks));
+    }, 1000);
   };
 
   useEffect(() => {
-    setInterval(() => setBlockIdx((bi) => bi + 1), 5000);
+    setInterval(() => setBlockIdx((bi) => bi + 1), 4000);
   }, []);
   /*                   Used for simulation                       */
   /***************************************************************/
 
-  useEffect(() => {
+  const bufferCheck = () => {
+    // as the blockIdx moves, this checks to see if we are
+    // > 50% along, so it can queue up the next few blocks
+    // and handle the buffering state
     const blocksLength = blocks.length;
     const percentComplete = (blockIdx / blocksLength) * 100;
 
-    if (percentComplete > 50) fetchBlocks();
-    console.log("block idx", blockIdx, blocks);
-  }, [blocks, blockIdx]);
+    const shouldBuffer = blocksLength === 0 || percentComplete > 100;
+    const shouldPrefetch = percentComplete > 30;
 
-  useEffect(() => {
+    setBuffering(shouldBuffer);
+    if (shouldBuffer || shouldPrefetch) fetchBlocks();
+  };
+
+  const keySignatureTransform = () => {
     // change key signature every 10,000 blocks
     // based on blockHeight
-    if (blocks.length === 0) return;
+    if (buffering) return;
 
     const block = blocks[blockIdx];
-
     const idx = Math.floor((block.height / 10000) % 7);
 
     const keys = ["A", "B", "C", "D", "E", "F", "G"];
     const keyLetter = keys[idx];
 
     setKey(Key.majorKey(keyLetter));
-  }, [blockIdx]);
+  };
 
-  useEffect(() => {
+  const tempoTransform = () => {
     // change tempo every block
     // based on # of transactions per block
-    if (blocks.length === 0) return;
+    if (buffering) return;
 
     const block = blocks[blockIdx];
     const nextBlock = blocks[blockIdx + 1];
@@ -102,54 +122,106 @@ export default function Music() {
 
     if (seconds >= 10) {
       const newBpm = getBlockBpm(block, nextBlock);
-      console.log("changing BPM to", newBpm);
       Tone.Transport.bpm.rampTo(newBpm, 3);
+      console.log("changing BPM to", newBpm);
     }
-  }, [blockIdx]);
-
-  useEffect(() => {
-    // play music on every tick of the loop
-    console.log(key, toneMeta);
-  }, [toneMeta]);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    const loop = new Tone.Loop((time) => {
-      setToneMeta((tm) => ({ ticks: tm.ticks + 1, time: time }));
-    }, "4n").start();
-
-    return () => loop.stop();
-  }, [isPlaying]);
-
-  const startPlayback = () => {
-    Tone.start();
-    setIsPlaying(true);
-    Tone.Transport.start();
-    // Tone.Transport.bpm.value = getBlockBpm(blockId, nextBlock);
   };
 
-  const pausePlayback = () => {
+  const instrumentSetup = () => {
+    Tone.start();
+
+    const piano = setupInstrument(pianoConfig, -18, true, false);
+    const violin = setupInstrument(violinConfig, -28, true, false);
+    const cello = setupInstrument(celloConfig, -28, true, true);
+    const drums = setupInstrument(drumConfig, -10, true, false);
+    const wave = new Tone.Waveform();
+    Tone.Master.connect(wave);
+
+    Tone.loaded().then(() => {
+      console.log("tones loaded");
+    });
+  };
+
+  const setupToneLoop = () => {
+    loop.current = new Tone.Loop((time) => {
+      setToneMeta((tm) => ({ ticks: tm.ticks + 1, time: time }));
+    }, "4n");
+  };
+
+  const playTick = () => {
+    // play music on every tick of the loop
+    console.log(key, toneMeta);
+  };
+
+  useEffect(instrumentSetup, []);
+  useEffect(setupToneLoop, []);
+  useEffect(bufferCheck, [blocks, blockIdx]);
+  useEffect(keySignatureTransform, [blockIdx, blocks, buffering]);
+  useEffect(tempoTransform, [blockIdx, blocks, buffering]);
+  useEffect(
+    playTick,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [toneMeta]
+  );
+
+  const play = () => {
+    Tone.start();
+    Tone.Transport.start();
+    loop.current.start();
+
+    setIsPlaying(true);
+  };
+
+  const pause = () => {
     Tone.Transport.stop();
+    loop.current.stop();
+
     setIsPlaying(false);
   };
 
+  if (buffering) return <div>Buffering...</div>;
+
   return (
-    <div className={{}}>
-      <button
-        onClick={pausePlayback}
-        className={styles.button}
-        style={{ opacity: isPlaying ? 1 : 0.2 }}
+    <div
+      style={{
+        justifyContent: "center",
+        alignItems: "center",
+        display: "flex",
+        flexDirection: "column",
+        paddingTop: 100,
+      }}
+    >
+      <div
+        style={{
+          padding: 10,
+          borderColor: "black",
+          borderWidth: 1,
+          borderRadius: 12,
+          borderStyle: "solid",
+          width: 300,
+        }}
       >
-        Stop
-      </button>
-      <button
-        onClick={startPlayback}
-        className={styles.button}
-        style={{ opacity: isPlaying ? 0.2 : 1 }}
-      >
-        Play
-      </button>
+        <p>Block #{blocks[blockIdx].height}</p>
+        <p>Transactions {blocks[blockIdx].transactions}</p>
+        <p>Timestamp {blocks[blockIdx].timestamp.toLocaleString()}</p>
+      </div>
+
+      <div style={{ marginTop: 40 }}>
+        <button
+          onClick={pause}
+          className={styles.button}
+          style={{ opacity: isPlaying ? 1 : 0.2 }}
+        >
+          Stop
+        </button>
+        <button
+          onClick={play}
+          className={styles.button}
+          style={{ opacity: isPlaying ? 0.2 : 1 }}
+        >
+          Play
+        </button>
+      </div>
     </div>
   );
 }

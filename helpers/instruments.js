@@ -1,4 +1,30 @@
+import * as Tone from "tone";
 // https://github.com/nbrosowsky/tonejs-instruments/tree/master/samples
+
+const setupInstrument = (
+  config,
+  volume,
+  enableReverb = true,
+  enablePanner = false
+) => {
+  const instrument = new Tone.Sampler(config).toDestination();
+  instrument.volume.value = volume;
+
+  if (enableReverb) {
+    const reverb = new Tone.Reverb({
+      wet: 0.3,
+      decay: 30,
+    }).toDestination();
+    instrument.connect(reverb);
+  }
+
+  if (enablePanner) {
+    const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
+    instrument.connect(autoPanner);
+  }
+
+  return instrument;
+};
 
 const celloConfig = {
   urls: {
@@ -151,4 +177,4 @@ const drumConfig = {
   baseUrl: "/drums/brian/",
 };
 
-export { celloConfig, pianoConfig, drumConfig, violinConfig };
+export { setupInstrument, celloConfig, pianoConfig, drumConfig, violinConfig };
