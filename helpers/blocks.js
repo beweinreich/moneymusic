@@ -2,7 +2,7 @@ const getExampleBlock = (num) => {
   return {
     height: num,
     timestamp: new Date(new Date().getTime() + num * 15000),
-    transactions: Math.floor(Math.random() * 100),
+    transactions: Math.floor(Math.random() * 300),
   };
 };
 
@@ -18,7 +18,7 @@ const getBlockBpm = (block) => {
   const scaleTransactions = Math.floor(
     (transactions / maxTransactionsPerBlock) * 100
   );
-  const newBpm = 20 + Math.min(scaleTransactions, 40);
+  const newBpm = 20 + Math.min(scaleTransactions, 50);
 
   return newBpm;
 };
