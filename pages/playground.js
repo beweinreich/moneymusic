@@ -45,13 +45,17 @@ export default function Music() {
   /* music stuff */
   const [buffering, setBuffering] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [blockIdx, setBlockIdx] = useState(0);
+  const [blockIdx, setBlockIdx] = useState(2);
   const [blocks, setBlocks] = useState([]);
   const [playingText, setPlayingText] = useState("");
   const [toneMeta, setToneMeta] = useState({ ticks: 0, time: Tone.Time() });
   const [key, setKey] = useState(null);
   const loop = useRef();
   const timeSignature = 4;
+  const piano = useRef();
+  const violin = useRef();
+  const cello = useRef();
+  const drums = useRef();
 
   /* drawing stuff */
   const canvasHeight = 150;
@@ -60,8 +64,8 @@ export default function Music() {
 
   /* random stuff */
   const rand = (seed) => mulberry32(xmur3(seed)());
-  const randomInt = (numOptions, randomNum) => {
-    return Math.floor(randomNum * numOptions);
+  const getRandomInt = (numOptions, seed) => {
+    return Math.floor(seed * numOptions);
   };
 
   /*                   Used for simulation                       */
@@ -83,8 +87,7 @@ export default function Music() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    const interval = setInterval(() => setBlockIdx((bi) => bi + 1), 1000);
-
+    const interval = setInterval(() => setBlockIdx((bi) => bi + 1), 10000);
     return () => clearInterval(interval);
   }, [isPlaying]);
   /*                   Used for simulation                       */
@@ -134,13 +137,18 @@ export default function Music() {
     }
   };
 
+  const ticksReset = () => {
+    // reset the ticks every time a new block is introduced
+    setToneMeta((tm) => ({ ticks: 0, time: tm.time }));
+  };
+
   const instrumentSetup = () => {
     Tone.start();
 
-    const piano = setupInstrument(pianoConfig, -18, true, false);
-    const violin = setupInstrument(violinConfig, -28, true, false);
-    const cello = setupInstrument(celloConfig, -28, true, true);
-    const drums = setupInstrument(drumConfig, -10, true, false);
+    piano.current = setupInstrument(pianoConfig, -18, true, false);
+    violin.current = setupInstrument(violinConfig, -28, true, false);
+    cello.current = setupInstrument(celloConfig, -28, true, true);
+    drums.current = setupInstrument(drumConfig, -10, true, false);
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
@@ -155,9 +163,78 @@ export default function Music() {
     }, "4n");
   };
 
+  const playNotesWithRhythm = (
+    instrument,
+    notes,
+    time,
+    seed,
+    extra = {
+      arp: false,
+      arpSteady: false,
+      arp4: false,
+      shuffle: false,
+      slice7: true,
+      noteDuration: "4n",
+    }
+  ) => {
+    if (extra.slice7) notes = notes.slice(0, 3);
+    if (extra.shuffle) notes = shuffle(notes, getRandomInt(notes.length, seed));
+
+    if (extra.arp) {
+      arpeggio(
+        instrument,
+        notes,
+        time,
+        getRandomInt,
+        seed,
+        timeSignature,
+        extra.noteDuration,
+        extra.arp4,
+        extra.arpSteady,
+        key
+      );
+    } else {
+      const melodyNum = getRandomInt(melodies.length, seed);
+      melodies[melodyNum](
+        instrument,
+        notes,
+        time,
+        getRandomInt,
+        seed,
+        timeSignature,
+        extra.noteDuration
+      );
+    }
+  };
+
+  const playInstrument = (instrument, availableNotes, time, seed, rhythm) => {
+    if (rhythm.silent) return;
+
+    const octave = rhythm.octave;
+    const notes = notesWithOctave(key, availableNotes, octave);
+    playNotesWithRhythm(instrument, notes, time, seed, rhythm);
+  };
+
   const playTick = () => {
     // play music on every tick of the loop
-    console.log(key, toneMeta);
+    if (buffering) return;
+
+    const { ticks, time } = toneMeta;
+
+    const seed = rand(`${blocks[blockIdx].height}${ticks}`)();
+    const duration = `${timeSignature}n`;
+    let rhythm = rhythms[getRandomInt(rhythms.length, seed)];
+
+    if (ticks % (timeSignature * 8) === 0)
+      rhythm = rhythms[getRandomInt(rhythms.length, seed)];
+
+    const availableNotes = getAvailableNotes(key, ticks, duration, seed);
+
+    //     // playDrums(drums, time);
+    playInstrument(cello.current, availableNotes, time, seed, rhythm.cello);
+    playInstrument(piano.current, availableNotes, time, seed, rhythm.pianoBass);
+    playInstrument(piano.current, availableNotes, time, seed, rhythm.pianoLead);
+    playInstrument(violin.current, availableNotes, time, seed, rhythm.violin);
   };
 
   useEffect(instrumentSetup, []);
@@ -165,6 +242,7 @@ export default function Music() {
   useEffect(bufferCheck, [blocks, blockIdx]);
   useEffect(keySignatureTransform, [blockIdx, blocks, buffering]);
   useEffect(tempoTransform, [blockIdx, blocks, buffering]);
+  useEffect(ticksReset, [blockIdx]);
   useEffect(
     playTick,
     // eslint-disable-next-line react-hooks/exhaustive-deps

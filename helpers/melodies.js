@@ -5,12 +5,13 @@ const melody1 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
   instrument.triggerAttackRelease(notes[0], noteDuration, time);
-  const note2 = [notes[0], notes[1]][randomInt(2)];
+  const note2 = [notes[0], notes[1]][getRandomInt(2, seed)];
   instrument.triggerAttackRelease(
     note2,
     noteDuration,
@@ -22,7 +23,8 @@ const melody2 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -43,7 +45,8 @@ const melody3 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -74,7 +77,8 @@ const melody4 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -89,7 +93,8 @@ const melody5 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -100,7 +105,8 @@ const melody6 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -116,7 +122,8 @@ const melody7 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -136,7 +143,8 @@ const melody8 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -165,7 +173,8 @@ const melody9 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -176,7 +185,8 @@ const melody10 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {};
@@ -185,7 +195,8 @@ const melody11 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -205,7 +216,8 @@ const melody12 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -222,7 +234,8 @@ const melody13 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -246,7 +259,8 @@ const melody14 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -291,7 +305,8 @@ const melody15 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -306,7 +321,8 @@ const melody16 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -322,7 +338,8 @@ const melody17 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -338,7 +355,8 @@ const melody18 = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration = "4n"
 ) => {
@@ -353,7 +371,8 @@ const arpeggio = (
   instrument,
   notes,
   time,
-  randomInt,
+  getRandomInt,
+  seed,
   timeSignature,
   noteDuration,
   arp4,
@@ -367,18 +386,20 @@ const arpeggio = (
     const noteSpacing = `${timeSignature * timeSignature}n`;
     const timeOffset = noteSpace(idx, noteSpacing);
 
-    if (idx === 1 && randomInt(10) > 5) {
+    if (idx === 1 && getRandomInt(10, seed) > 5) {
       // play an extra fun note
       const currentNoteIdx = key.scale.indexOf(note.slice(0, note.length - 1));
+      const nextIdx = currentNoteIdx === 6 ? 4 : currentNoteIdx + 1;
       const currentOctave = note.slice(-1);
+
       instrument.triggerAttackRelease(
-        `${key.scale[currentNoteIdx + 1]}${currentOctave}`,
+        `${key.scale[nextIdx]}${currentOctave}`,
         noteDuration,
         time + timeOffset + Tone.Time("32n")
       );
     }
 
-    const playNote = arpSteady ? true : randomInt(10) > 3;
+    const playNote = arpSteady ? true : getRandomInt(10, seed) > 3;
     if (playNote)
       instrument.triggerAttackRelease(note, noteDuration, time + timeOffset);
   });
