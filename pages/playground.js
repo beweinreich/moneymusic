@@ -1,9 +1,9 @@
 import react, { useEffect, useState, useRef } from "react";
 import Head from "next/head";
 import Image from "next/image";
-import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
+
 import {
   setupInstrument,
   celloConfig,
@@ -27,6 +27,8 @@ import {
   getBlockBpm,
 } from "../helpers/blocks";
 import useWindowDimensions from "../helpers/window-dimensions";
+import Block from "../components/Block";
+import styles from "../styles/Home.module.css";
 
 export default function Music() {
   /* Rules for creating music
@@ -64,22 +66,27 @@ export default function Music() {
 
   /*                   Used for simulation                       */
   /***************************************************************/
-  const fetchBlocks = async () => {
+  const fetchBlocks = async (bs) => {
     setTimeout(() => {
-      const newBlocks = [
-        getExampleBlock(),
-        getExampleBlock(),
-        getExampleBlock(),
-        getExampleBlock(),
-        getExampleBlock(),
-      ];
-      setBlocks((blocks) => blocks.concat(newBlocks));
+      const lastBlock = bs.slice(-1);
+      const startNum = lastBlock.length > 0 ? lastBlock[0].height + 1 : 0;
+
+      let newBlocks = [];
+      for (var i = startNum; i < startNum + 8; i++) {
+        newBlocks.push(getExampleBlock(i));
+      }
+
+      setBlocks((bss) => bss.concat(newBlocks));
     }, 1000);
   };
 
   useEffect(() => {
-    setInterval(() => setBlockIdx((bi) => bi + 1), 4000);
-  }, []);
+    if (!isPlaying) return;
+
+    const interval = setInterval(() => setBlockIdx((bi) => bi + 1), 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
   /*                   Used for simulation                       */
   /***************************************************************/
 
@@ -91,10 +98,10 @@ export default function Music() {
     const percentComplete = (blockIdx / blocksLength) * 100;
 
     const shouldBuffer = blocksLength === 0 || percentComplete > 100;
-    const shouldPrefetch = percentComplete > 30;
+    const shouldPrefetch = percentComplete > 20;
 
     setBuffering(shouldBuffer);
-    if (shouldBuffer || shouldPrefetch) fetchBlocks();
+    if (shouldBuffer || shouldPrefetch) fetchBlocks(blocks);
   };
 
   const keySignatureTransform = () => {
@@ -191,20 +198,7 @@ export default function Music() {
         paddingTop: 100,
       }}
     >
-      <div
-        style={{
-          padding: 10,
-          borderColor: "black",
-          borderWidth: 1,
-          borderRadius: 12,
-          borderStyle: "solid",
-          width: 300,
-        }}
-      >
-        <p>Block #{blocks[blockIdx].height}</p>
-        <p>Transactions {blocks[blockIdx].transactions}</p>
-        <p>Timestamp {blocks[blockIdx].timestamp.toLocaleString()}</p>
-      </div>
+      <Block block={blocks[blockIdx]} key={blocks[blockIdx].height} />
 
       <div style={{ marginTop: 40 }}>
         <button

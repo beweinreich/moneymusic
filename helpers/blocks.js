@@ -1,6 +1,6 @@
-const getExampleBlock = () => {
+const getExampleBlock = (num) => {
   return {
-    height: Math.floor(Math.random() * 100),
+    height: num,
     timestamp: new Date(new Date().getTime() + 30000),
     transactions: Math.floor(Math.random() * 100),
   };
