@@ -87,6 +87,10 @@ export default function Music() {
   };
 
   useEffect(() => {
+    setBlockIdx(window.location.search.slice(-1));
+  }, []);
+
+  useEffect(() => {
     if (!isPlaying) return;
 
     const interval = setInterval(() => setBlockIdx((bi) => bi + 1), 10000);
