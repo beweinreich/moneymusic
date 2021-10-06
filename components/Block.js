@@ -11,7 +11,7 @@ export default function Block({ block }) {
         borderWidth: 1,
         borderRadius: 12,
         borderStyle: "solid",
-        width: 240,
+        width: 300,
       }}
     >
       <p>Block #{block.height}</p>
