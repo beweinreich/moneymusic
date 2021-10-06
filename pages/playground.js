@@ -45,11 +45,13 @@ export default function Music() {
   /* music stuff */
   const [buffering, setBuffering] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [blockIdx, setBlockIdx] = useState(2);
+  const [blockIdx, setBlockIdx] = useState(0);
   const [blocks, setBlocks] = useState([]);
   const [playingText, setPlayingText] = useState("");
-  const [toneMeta, setToneMeta] = useState({ ticks: 0, time: Tone.Time() });
+  const [ticks, setTicks] = useState(0);
+  const [time, setTime] = useState(Tone.Time());
   const [key, setKey] = useState(null);
+  const [bpm, setBpm] = useState(null);
   const loop = useRef();
   const timeSignature = 4;
   const piano = useRef();
@@ -124,22 +126,24 @@ export default function Music() {
   const tempoTransform = () => {
     // change tempo every block
     // based on # of transactions per block
-    if (buffering) return;
+    if (buffering || !isPlaying) return;
 
     const block = blocks[blockIdx];
     const nextBlock = blocks[blockIdx + 1];
     const seconds = secondsUntilNextBlock(block, nextBlock);
 
     if (seconds >= 10) {
-      const newBpm = getBlockBpm(block, nextBlock);
-      Tone.Transport.bpm.rampTo(newBpm, 3);
-      console.log("changing BPM to", newBpm);
+      const nextBpm = getBlockBpm(block);
+      const rampDuration = 3;
+
+      setBpm(nextBpm);
+      Tone.Transport.bpm.rampTo(nextBpm, rampDuration);
     }
   };
 
   const ticksReset = () => {
     // reset the ticks every time a new block is introduced
-    setToneMeta((tm) => ({ ticks: 0, time: tm.time }));
+    setTicks(0);
   };
 
   const instrumentSetup = () => {
@@ -159,7 +163,8 @@ export default function Music() {
 
   const setupToneLoop = () => {
     loop.current = new Tone.Loop((time) => {
-      setToneMeta((tm) => ({ ticks: tm.ticks + 1, time: time }));
+      setTicks((t) => t + 1);
+      setTime(time);
     }, "4n");
   };
 
@@ -219,8 +224,6 @@ export default function Music() {
     // play music on every tick of the loop
     if (buffering) return;
 
-    const { ticks, time } = toneMeta;
-
     const seed = rand(`${blocks[blockIdx].height}${ticks}`)();
     const duration = `${timeSignature}n`;
     let rhythm = rhythms[getRandomInt(rhythms.length, seed)];
@@ -241,16 +244,21 @@ export default function Music() {
   useEffect(setupToneLoop, []);
   useEffect(bufferCheck, [blocks, blockIdx]);
   useEffect(keySignatureTransform, [blockIdx, blocks, buffering]);
-  useEffect(tempoTransform, [blockIdx, blocks, buffering]);
+  useEffect(tempoTransform, [blockIdx, buffering]);
   useEffect(ticksReset, [blockIdx]);
   useEffect(
     playTick,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [toneMeta]
+    [time]
   );
 
   const play = () => {
     Tone.start();
+
+    const startingBpm = getBlockBpm(blocks[blockIdx]);
+    Tone.Transport.bpm.value = startingBpm;
+    setBpm(startingBpm);
+
     Tone.Transport.start();
     loop.current.start();
 
@@ -277,7 +285,7 @@ export default function Music() {
       }}
     >
       <Block block={blocks[blockIdx]} key={blocks[blockIdx].height} />
-
+      <p>{bpm && `${bpm}bpm`}</p>
       <div style={{ marginTop: 40 }}>
         <button
           onClick={pause}

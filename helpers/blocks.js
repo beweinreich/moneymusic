@@ -1,7 +1,7 @@
 const getExampleBlock = (num) => {
   return {
     height: num,
-    timestamp: new Date(new Date().getTime() + 30000),
+    timestamp: new Date(new Date().getTime() + num * 15000),
     transactions: Math.floor(Math.random() * 100),
   };
 };
@@ -11,7 +11,7 @@ const secondsUntilNextBlock = (block1, block2) => {
   return Math.abs(diff / 1000);
 };
 
-const getBlockBpm = (block, nextBlock) => {
+const getBlockBpm = (block) => {
   const maxTransactionsPerBlock = 300;
 
   const transactions = block.transactions;
