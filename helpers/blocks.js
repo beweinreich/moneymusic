@@ -1,7 +1,8 @@
 const getExampleBlock = (num) => {
+  const fiveYears = 5 * 400 * 24 * 60 * 60 * 1000;
   return {
     height: num,
-    timestamp: new Date(new Date().getTime() + num * 15000),
+    timestamp: new Date(new Date().getTime() - fiveYears + num * 15000),
     transactions: Math.floor(Math.random() * 300),
   };
 };
