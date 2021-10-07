@@ -42,18 +42,22 @@ export default function Music() {
     - Certain rhythms can be favored by certain instruments / BPM
   */
 
+  /* block stuff */
+  const [blockIdx, setBlockIdx] = useState(null);
+  const [blocks, setBlocks] = useState([]);
+  const [blockTime, setBlockTime] = useState(null);
+
   /* music stuff */
   const [buffering, setBuffering] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [blockIdx, setBlockIdx] = useState(0);
-  const [blocks, setBlocks] = useState([]);
-  const [playingText, setPlayingText] = useState("");
   const [ticks, setTicks] = useState(0);
   const [time, setTime] = useState(Tone.Time());
+
   const [key, setKey] = useState(null);
   const [bpm, setBpm] = useState(null);
-  const loop = useRef();
   const timeSignature = 4;
+
+  const loop = useRef();
   const piano = useRef();
   const violin = useRef();
   const cello = useRef();
@@ -87,17 +91,29 @@ export default function Music() {
   };
 
   useEffect(() => {
-    setBlockIdx(window.location.search.slice(-1));
+    setBlockIdx(parseInt(window.location.search.slice(-1)));
   }, []);
 
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    const interval = setInterval(() => setBlockIdx((bi) => bi + 1), 10000);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
   /*                   Used for simulation                       */
   /***************************************************************/
+
+  const updateBlockTime = () => {
+    if (!isPlaying) return;
+
+    const interval = setInterval(() => {
+      setBlockTime((bt) => new Date(bt.getTime() + 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  };
+
+  const scheduleBlockChange = () => {
+    if (!isPlaying) return;
+
+    const nextBlock = blocks[blockIdx + 1];
+    const seconds = secondsUntilNextBlock(nextBlock, blockTime);
+    if (seconds <= 0) setBlockIdx((bi) => parseInt(bi) + 1);
+  };
 
   const bufferCheck = () => {
     // as the blockIdx moves, this checks to see if we are
@@ -106,7 +122,8 @@ export default function Music() {
     const blocksLength = blocks.length;
     const percentComplete = (blockIdx / blocksLength) * 100;
 
-    const shouldBuffer = blocksLength === 0 || percentComplete > 100;
+    const shouldBuffer =
+      blocksLength === 0 || percentComplete > 100 || !blockIdx;
     const shouldPrefetch = percentComplete > 20;
 
     setBuffering(shouldBuffer);
@@ -132,16 +149,18 @@ export default function Music() {
     // based on # of transactions per block
     if (buffering || !isPlaying) return;
 
-    const block = blocks[blockIdx];
     const nextBlock = blocks[blockIdx + 1];
-    const seconds = secondsUntilNextBlock(block, nextBlock);
+    if (!nextBlock) return;
 
+    const seconds = secondsUntilNextBlock(nextBlock, blockTime);
     if (seconds >= 10) {
-      const nextBpm = getBlockBpm(block);
+      // if the next block is > 10s away
+      // we have time to ramp to the current blocks BPM
+      const newBpm = getBlockBpm(block);
       const rampDuration = 3;
 
-      setBpm(nextBpm);
-      Tone.Transport.bpm.rampTo(nextBpm, rampDuration);
+      setBpm(newBpm);
+      Tone.Transport.bpm.rampTo(newBpm, rampDuration);
     }
   };
 
@@ -160,9 +179,7 @@ export default function Music() {
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
-    Tone.loaded().then(() => {
-      console.log("tones loaded");
-    });
+    Tone.loaded().then(() => console.log("tones loaded"));
   };
 
   const setupToneLoop = () => {
@@ -244,6 +261,8 @@ export default function Music() {
     playInstrument(violin.current, availableNotes, time, seed, rhythm.violin);
   };
 
+  useEffect(updateBlockTime, [isPlaying]);
+  useEffect(scheduleBlockChange, [blockTime]);
   useEffect(instrumentSetup, []);
   useEffect(setupToneLoop, []);
   useEffect(bufferCheck, [blocks, blockIdx]);
@@ -259,9 +278,14 @@ export default function Music() {
   const play = () => {
     Tone.start();
 
-    const startingBpm = getBlockBpm(blocks[blockIdx]);
+    const block = blocks[blockIdx];
+
+    const startingBpm = getBlockBpm(block);
     Tone.Transport.bpm.value = startingBpm;
     setBpm(startingBpm);
+
+    const blockTime = block.timestamp;
+    setBlockTime(blockTime);
 
     Tone.Transport.start();
     loop.current.start();
@@ -289,6 +313,7 @@ export default function Music() {
       }}
     >
       <Block block={blocks[blockIdx]} key={blocks[blockIdx].height} />
+      <p>{blockTime && `Time: ${blockTime.toLocaleString()}`}</p>
       <p>{bpm && `${bpm}bpm`}</p>
       <div style={{ marginTop: 40 }}>
         <button

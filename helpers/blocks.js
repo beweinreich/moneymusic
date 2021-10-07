@@ -6,9 +6,9 @@ const getExampleBlock = (num) => {
   };
 };
 
-const secondsUntilNextBlock = (block1, block2) => {
-  const diff = block2.timestamp.getTime() - block1.timestamp.getTime();
-  return Math.abs(diff / 1000);
+const secondsUntilNextBlock = (block2, blockTime) => {
+  const diff = block2.timestamp.getTime() - blockTime.getTime();
+  return Math.floor(diff / 1000);
 };
 
 const getBlockBpm = (block) => {
