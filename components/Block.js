@@ -24,6 +24,7 @@ export default function Block({ block, nextBlock, blockTime }) {
         borderStyle: "solid",
         width: 300,
         opacity: opacity,
+        minHeight: 140,
       }}
     >
       <p>Block #{block.height}</p>

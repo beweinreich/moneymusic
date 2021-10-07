@@ -28,6 +28,7 @@ import {
 } from "../helpers/blocks";
 import useWindowDimensions from "../helpers/window-dimensions";
 import Block from "../components/Block";
+import BlockEmpty from "../components/BlockEmpty";
 import styles from "../styles/Home.module.css";
 
 export default function Music() {
@@ -43,12 +44,13 @@ export default function Music() {
   */
 
   /* block stuff */
+  const [fetchingBlocks, setFetchingBlocks] = useState(false);
   const [blockIdx, setBlockIdx] = useState(null);
   const [blocks, setBlocks] = useState([]);
   const [blockTime, setBlockTime] = useState(null);
 
   /* music stuff */
-  const [buffering, setBuffering] = useState(true);
+  const [instrumentsLoaded, setInstrumentsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [ticks, setTicks] = useState(0);
   const [time, setTime] = useState(Tone.Time());
@@ -127,18 +129,19 @@ export default function Music() {
       blocksLength === 0 || percentComplete > 100 || !blockIdx;
     const shouldPrefetch = percentComplete > 20;
 
-    setBuffering(shouldBuffer);
+    setFetchingBlocks(shouldBuffer);
     if (shouldBuffer || shouldPrefetch) fetchBlocks(blocks);
   };
 
   const keySignatureTransform = () => {
     // change key signature every 10,000 blocks
     // based on blockHeight
-    if (buffering) return;
+    if (!instrumentsLoaded) return;
 
     const block = blocks[blockIdx];
-    const idx = Math.floor((block.height / 10000) % 7);
+    if (!block) return;
 
+    const idx = Math.floor((block.height / 10000) % 7);
     const keys = ["A", "B", "C", "D", "E", "F", "G"];
     const keyLetter = keys[idx];
 
@@ -148,7 +151,7 @@ export default function Music() {
   const tempoTransform = () => {
     // change tempo every block
     // based on # of transactions per block
-    if (buffering || !isPlaying) return;
+    if (!instrumentsLoaded || !isPlaying) return;
 
     const nextBlock = blocks[blockIdx + 1];
     if (!nextBlock) return;
@@ -181,7 +184,7 @@ export default function Music() {
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
-    Tone.loaded().then(() => console.log("tones loaded"));
+    Tone.loaded().then(() => setInstrumentsLoaded(true));
   };
 
   const setupToneLoop = () => {
@@ -245,9 +248,12 @@ export default function Music() {
 
   const playTick = () => {
     // play music on every tick of the loop
-    if (buffering) return;
+    if (!instrumentsLoaded) return;
 
-    const seed = rand(`${blocks[blockIdx].height}${ticks}`)();
+    const block = blocks[blockIdx];
+    if (!block) return;
+
+    const seed = rand(`${block.height}${ticks}`)();
     const duration = `${timeSignature}n`;
     let rhythm = rhythms[getRandomInt(rhythms.length, seed)];
 
@@ -268,13 +274,13 @@ export default function Music() {
   useEffect(instrumentSetup, []);
   useEffect(setupToneLoop, []);
   useEffect(bufferCheck, [blocks, blockIdx]);
-  useEffect(keySignatureTransform, [blockIdx, blocks, buffering]);
-  useEffect(tempoTransform, [blockIdx, buffering]);
+  useEffect(keySignatureTransform, [blockIdx, blocks, instrumentsLoaded]);
+  useEffect(tempoTransform, [blockIdx, instrumentsLoaded]);
   useEffect(ticksReset, [blockIdx]);
   useEffect(
     playTick,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [time]
+    [time, instrumentsLoaded]
   );
 
   const play = () => {
@@ -302,24 +308,27 @@ export default function Music() {
     setIsPlaying(false);
   };
 
-  if (buffering) return <div>Buffering...</div>;
+  if (!instrumentsLoaded)
+    return (
+      <div className={styles.container}>
+        <p>Loading instruments...</p>
+      </div>
+    );
+
+  const blocksReady = blocks.length > 0 && blocks[blockIdx];
 
   return (
-    <div
-      style={{
-        justifyContent: "center",
-        alignItems: "center",
-        display: "flex",
-        flexDirection: "column",
-        paddingTop: 100,
-      }}
-    >
-      <Block
-        block={blocks[blockIdx]}
-        key={blocks[blockIdx].height}
-        nextBlock={blocks[blockIdx + 1]}
-        blockTime={blockTime}
-      />
+    <div className={styles.container}>
+      {blocksReady ? (
+        <Block
+          block={blocks[blockIdx]}
+          key={blocks[blockIdx]?.height}
+          nextBlock={blocks[blockIdx + 1]}
+          blockTime={blockTime}
+        />
+      ) : (
+        <BlockEmpty />
+      )}
       <p>{blockTime && `Time: ${blockTime.toLocaleString()}`}</p>
       <p>{bpm && `${bpm}bpm`}</p>
       <div style={{ marginTop: 40 }}>
