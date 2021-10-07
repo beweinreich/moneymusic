@@ -248,7 +248,7 @@ export default function Music() {
 
   const playTick = () => {
     // play music on every tick of the loop
-    if (!instrumentsLoaded) return;
+    if (!instrumentsLoaded || !key) return;
 
     const block = blocks[blockIdx];
     if (!block) return;
