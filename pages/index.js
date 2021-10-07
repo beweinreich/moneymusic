@@ -1,10 +1,11 @@
-import react, { useEffect, useState } from "react";
+import react, { useEffect, useState, useRef } from "react";
 import Head from "next/head";
 import Image from "next/image";
-import styles from "../styles/Home.module.css";
 import * as Tone from "tone";
 import { Scale, Chord, Key } from "@tonaljs/tonal";
+
 import {
+  setupInstrument,
   celloConfig,
   pianoConfig,
   drumConfig,
@@ -20,7 +21,14 @@ import {
 import { melodies, arpeggio } from "../helpers/melodies";
 import { drawWaveform, clearCanvas } from "../helpers/draw";
 import { rhythms } from "../helpers/rhythms";
+import {
+  getExampleBlock,
+  secondsUntilNextBlock,
+  getBlockBpm,
+} from "../helpers/blocks";
 import useWindowDimensions from "../helpers/window-dimensions";
+import Block from "../components/Block";
+import styles from "../styles/Home.module.css";
 
 export default function Music() {
   /* Rules for creating music
@@ -33,106 +41,160 @@ export default function Music() {
     - Some measures could be silent for certain instruments
     - Certain rhythms can be favored by certain instruments / BPM
   */
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [seed, setSeed] = useState("bcadewo");
-  const [playingText, setPlayingText] = useState("");
 
+  /* block stuff */
+  const [blockIdx, setBlockIdx] = useState(null);
+  const [blocks, setBlocks] = useState([]);
+  const [blockTime, setBlockTime] = useState(null);
+
+  /* music stuff */
+  const [buffering, setBuffering] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [ticks, setTicks] = useState(0);
+  const [time, setTime] = useState(Tone.Time());
+
+  const [key, setKey] = useState(null);
+  const [bpm, setBpm] = useState(null);
+  const timeSignature = 4;
+
+  const loop = useRef();
+  const piano = useRef();
+  const violin = useRef();
+  const cello = useRef();
+  const drums = useRef();
+
+  /* drawing stuff */
   const canvasHeight = 150;
   const [canvasWidth, setCanvasWidth] = useState(null);
   const { width } = useWindowDimensions();
 
-  const seeder = xmur3(seed);
-  const rand = mulberry32(seeder());
-  const initialSeed = rand();
-
-  const randomInt = (numOptions) => {
-    const randomNum = rand();
-    return Math.floor(randomNum * numOptions);
+  /* random stuff */
+  const rand = (seed) => mulberry32(xmur3(seed)());
+  const getRandomInt = (numOptions, seed) => {
+    return Math.floor(seed * numOptions);
   };
 
-  const keys = ["A", "B", "C", "D", "E", "F", "G"];
-  const keyLetter = keys[randomInt(keys.length)];
-  const key = Key.majorKey(keyLetter);
-  const timeSignature = 4; //[3, 4][randomInt(2)];
+  /*                   Used for simulation                       */
+  /***************************************************************/
+  const fetchBlocks = async (bs) => {
+    setTimeout(() => {
+      const lastBlock = bs.slice(-1);
+      const startNum = lastBlock.length > 0 ? lastBlock[0].height + 1 : 0;
 
-  useEffect(() => setCanvasWidth(width), [width]);
+      let newBlocks = [];
+      for (var i = startNum; i < startNum + 8; i++) {
+        newBlocks.push(getExampleBlock(i));
+      }
+
+      setBlocks((bss) => bss.concat(newBlocks));
+    }, 1000);
+  };
 
   useEffect(() => {
-    if (!isPlaying) return;
-    Tone.start();
-    Tone.Transport.cancel();
-    Tone.Transport.bpm.value = (timeSignature === 3 ? 10 : 30) + randomInt(40); // should be slower for 3/4 time
+    setBlockIdx(parseInt(window.location.search.slice(-1)));
+  }, []);
 
-    const piano = setupInstrument(pianoConfig, -18, true, false);
-    const violin = setupInstrument(violinConfig, -28, true, false);
-    const cello = setupInstrument(celloConfig, -28, true, true);
-    const drums = setupInstrument(drumConfig, -10, true, false);
+  /*                   Used for simulation                       */
+  /***************************************************************/
+
+  const updateBlockTime = () => {
+    if (!isPlaying) return;
+
+    const interval = setInterval(() => {
+      setBlockTime((bt) => new Date(bt.getTime() + 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  };
+
+  const scheduleBlockChange = () => {
+    if (!isPlaying) return;
+
+    const nextBlock = blocks[blockIdx + 1];
+    const seconds = secondsUntilNextBlock(nextBlock, blockTime);
+    if (seconds <= 0) setBlockIdx((bi) => parseInt(bi) + 1);
+  };
+
+  const bufferCheck = () => {
+    // as the blockIdx moves, this checks to see if we are
+    // > 50% along, so it can queue up the next few blocks
+    // and handle the buffering state
+    const blocksLength = blocks.length;
+    const percentComplete = (blockIdx / blocksLength) * 100;
+
+    const shouldBuffer =
+      blocksLength === 0 || percentComplete > 100 || !blockIdx;
+    const shouldPrefetch = percentComplete > 20;
+
+    setBuffering(shouldBuffer);
+    if (shouldBuffer || shouldPrefetch) fetchBlocks(blocks);
+  };
+
+  const keySignatureTransform = () => {
+    // change key signature every 10,000 blocks
+    // based on blockHeight
+    if (buffering) return;
+
+    const block = blocks[blockIdx];
+    const idx = Math.floor((block.height / 10000) % 7);
+
+    const keys = ["A", "B", "C", "D", "E", "F", "G"];
+    const keyLetter = keys[idx];
+
+    setKey(Key.majorKey(keyLetter));
+  };
+
+  const tempoTransform = () => {
+    // change tempo every block
+    // based on # of transactions per block
+    if (buffering || !isPlaying) return;
+
+    const nextBlock = blocks[blockIdx + 1];
+    if (!nextBlock) return;
+
+    const seconds = secondsUntilNextBlock(nextBlock, blockTime);
+    if (seconds >= 10) {
+      // if the next block is > 10s away
+      // we have time to ramp to the current blocks BPM
+      const block = blocks[blockIdx];
+      const newBpm = getBlockBpm(block);
+      const rampDuration = 3;
+
+      setBpm(newBpm);
+      Tone.Transport.bpm.rampTo(newBpm, rampDuration);
+    }
+  };
+
+  const ticksReset = () => {
+    // reset the ticks every time a new block is introduced
+    setTicks(0);
+  };
+
+  const instrumentSetup = () => {
+    Tone.start();
+
+    piano.current = setupInstrument(pianoConfig, -18, true, false);
+    violin.current = setupInstrument(violinConfig, -28, true, false);
+    cello.current = setupInstrument(celloConfig, -28, true, true);
+    drums.current = setupInstrument(drumConfig, -10, true, false);
     const wave = new Tone.Waveform();
     Tone.Master.connect(wave);
 
-    Tone.loaded().then(() => {
-      const duration = `${timeSignature}n`;
-      let rhythm = rhythms[randomInt(rhythms.length)];
-      let ticks = 0;
+    Tone.loaded().then(() => console.log("tones loaded"));
+  };
 
-      new Tone.Loop((time) => {
-        if (ticks % (timeSignature * 8) === 0)
-          rhythm = rhythms[randomInt(rhythms.length)];
-
-        const availableNotes = getAvailableNotes(
-          key,
-          ticks,
-          duration,
-          initialSeed
-        );
-
-        // playDrums(drums, time);
-        playInstrument(cello, availableNotes, time, rhythm.cello);
-        playInstrument(piano, availableNotes, time, rhythm.pianoBass);
-        playInstrument(piano, availableNotes, time, rhythm.pianoLead);
-        playInstrument(violin, availableNotes, time, rhythm.violin);
-        ticks++;
-      }, "4n").start();
-    });
-
-    new Tone.Loop((time) => {
-      Tone.Draw.schedule(
-        () => drawWaveform(wave, canvasWidth, canvasHeight),
-        time
-      );
-    }, "64n").start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying]);
-
-  const setupInstrument = (
-    config,
-    volume,
-    enableReverb = true,
-    enablePanner = false
-  ) => {
-    const instrument = new Tone.Sampler(config).toDestination();
-    instrument.volume.value = volume;
-
-    if (enableReverb) {
-      const reverb = new Tone.Reverb({
-        wet: 0.3,
-        decay: 30,
-      }).toDestination();
-      instrument.connect(reverb);
-    }
-
-    if (enablePanner) {
-      const autoPanner = new Tone.AutoPanner("1n").toDestination().start();
-      instrument.connect(autoPanner);
-    }
-
-    return instrument;
+  const setupToneLoop = () => {
+    loop.current = new Tone.Loop((time) => {
+      setTicks((t) => t + 1);
+      setTime(time);
+    }, "4n");
   };
 
   const playNotesWithRhythm = (
     instrument,
     notes,
     time,
+    seed,
     extra = {
       arp: false,
       arpSteady: false,
@@ -143,14 +205,15 @@ export default function Music() {
     }
   ) => {
     if (extra.slice7) notes = notes.slice(0, 3);
-    if (extra.shuffle) notes = shuffle(notes, randomInt(notes.length));
+    if (extra.shuffle) notes = shuffle(notes, getRandomInt(notes.length, seed));
 
     if (extra.arp) {
       arpeggio(
         instrument,
         notes,
         time,
-        randomInt,
+        getRandomInt,
+        seed,
         timeSignature,
         extra.noteDuration,
         extra.arp4,
@@ -158,99 +221,122 @@ export default function Music() {
         key
       );
     } else {
-      const melodyNum = randomInt(melodies.length);
+      const melodyNum = getRandomInt(melodies.length, seed);
       melodies[melodyNum](
         instrument,
         notes,
         time,
-        randomInt,
+        getRandomInt,
+        seed,
         timeSignature,
         extra.noteDuration
       );
     }
   };
 
-  const playInstrument = (instrument, availableNotes, time, rhythm) => {
+  const playInstrument = (instrument, availableNotes, time, seed, rhythm) => {
     if (rhythm.silent) return;
 
     const octave = rhythm.octave;
     const notes = notesWithOctave(key, availableNotes, octave);
-    playNotesWithRhythm(instrument, notes, time, rhythm);
+    playNotesWithRhythm(instrument, notes, time, seed, rhythm);
   };
 
-  const playDrums = (instrument, time) => {
-    instrument.triggerAttackRelease("D4", "4n", time);
+  const playTick = () => {
+    // play music on every tick of the loop
+    if (buffering) return;
+
+    const seed = rand(`${blocks[blockIdx].height}${ticks}`)();
+    const duration = `${timeSignature}n`;
+    let rhythm = rhythms[getRandomInt(rhythms.length, seed)];
+
+    if (ticks % (timeSignature * 8) === 0)
+      rhythm = rhythms[getRandomInt(rhythms.length, seed)];
+
+    const availableNotes = getAvailableNotes(key, ticks, duration, seed);
+
+    //     // playDrums(drums, time);
+    playInstrument(cello.current, availableNotes, time, seed, rhythm.cello);
+    playInstrument(piano.current, availableNotes, time, seed, rhythm.pianoBass);
+    playInstrument(piano.current, availableNotes, time, seed, rhythm.pianoLead);
+    playInstrument(violin.current, availableNotes, time, seed, rhythm.violin);
   };
 
-  useEffect(() => {
-    document.addEventListener("keyup", function (event) {
-      if (event.keyCode === 13) isPlaying ? pausePlayback() : startPlayback();
-    });
-  }, [isPlaying]);
+  useEffect(updateBlockTime, [isPlaying]);
+  useEffect(scheduleBlockChange, [blockTime]);
+  useEffect(instrumentSetup, []);
+  useEffect(setupToneLoop, []);
+  useEffect(bufferCheck, [blocks, blockIdx]);
+  useEffect(keySignatureTransform, [blockIdx, blocks, buffering]);
+  useEffect(tempoTransform, [blockIdx, buffering]);
+  useEffect(ticksReset, [blockIdx]);
+  useEffect(
+    playTick,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [time]
+  );
 
-  const startPlayback = () => {
-    if (isPlaying) {
-      pausePlayback();
-      clearCanvas(canvasWidth, canvasHeight);
-      setTimeout(() => {
-        setIsPlaying(true);
-        Tone.Transport.start();
-      }, 1000);
-      return;
-    }
+  const play = () => {
+    Tone.start();
+
+    const block = blocks[blockIdx];
+
+    const startingBpm = getBlockBpm(block);
+    Tone.Transport.bpm.value = startingBpm;
+    setBpm(startingBpm);
+
+    const blockTime = block.timestamp;
+    setBlockTime(blockTime);
+
+    Tone.Transport.start();
+    loop.current.start();
 
     setIsPlaying(true);
-    Tone.Transport.start();
   };
 
-  const pausePlayback = () => {
+  const pause = () => {
     Tone.Transport.stop();
+    loop.current.stop();
+
     setIsPlaying(false);
   };
 
+  if (buffering) return <div>Buffering...</div>;
+
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>dotwav</title>
-        <meta name="description" content="Making money with music" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <div>
-        <img src="/dotwav.png" style={{ height: 100, marginBottom: 20 }} />
-      </div>
-      <input
-        type="text"
-        value={seed}
-        onChange={(val) => setSeed(val.target.value)}
-        className={styles.input}
+    <div
+      style={{
+        justifyContent: "center",
+        alignItems: "center",
+        display: "flex",
+        flexDirection: "column",
+        paddingTop: 100,
+      }}
+    >
+      <Block
+        block={blocks[blockIdx]}
+        key={blocks[blockIdx].height}
+        nextBlock={blocks[blockIdx + 1]}
+        blockTime={blockTime}
       />
-      <p />
-      <div className={{}}>
+      <p>{blockTime && `Time: ${blockTime.toLocaleString()}`}</p>
+      <p>{bpm && `${bpm}bpm`}</p>
+      <div style={{ marginTop: 40 }}>
         <button
-          onClick={pausePlayback}
+          onClick={pause}
           className={styles.button}
           style={{ opacity: isPlaying ? 1 : 0.2 }}
         >
           Stop
         </button>
         <button
-          onClick={startPlayback}
+          onClick={play}
           className={styles.button}
           style={{ opacity: isPlaying ? 0.2 : 1 }}
         >
           Play
         </button>
       </div>
-      <p />
-      {/*<p>
-        In the key of {keyLetter}. Time signature: {timeSignature}/4
-      </p>*/}
-      <canvas
-        id="canvas"
-        width={canvasWidth}
-        height={canvasHeight}
-        style={{ backgroundColor: "black", borderRadius: 20 }}
-      ></canvas>
     </div>
   );
 }
