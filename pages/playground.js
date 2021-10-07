@@ -156,6 +156,7 @@ export default function Music() {
     if (seconds >= 10) {
       // if the next block is > 10s away
       // we have time to ramp to the current blocks BPM
+      const block = blocks[blockIdx];
       const newBpm = getBlockBpm(block);
       const rampDuration = 3;
 
@@ -312,7 +313,12 @@ export default function Music() {
         paddingTop: 100,
       }}
     >
-      <Block block={blocks[blockIdx]} key={blocks[blockIdx].height} />
+      <Block
+        block={blocks[blockIdx]}
+        key={blocks[blockIdx].height}
+        nextBlock={blocks[blockIdx + 1]}
+        blockTime={blockTime}
+      />
       <p>{blockTime && `Time: ${blockTime.toLocaleString()}`}</p>
       <p>{bpm && `${bpm}bpm`}</p>
       <div style={{ marginTop: 40 }}>

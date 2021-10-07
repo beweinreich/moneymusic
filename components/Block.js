@@ -1,7 +1,18 @@
 import React, { useEffect } from "react";
+import { secondsUntilNextBlock } from "../helpers/blocks";
 
-export default function Block({ block }) {
+export default function Block({ block, nextBlock, blockTime }) {
   if (!block) return null;
+
+  const calculateOpacity = () => {
+    if (!nextBlock || !blockTime) return 1.0;
+
+    const secondsLeft = secondsUntilNextBlock(nextBlock, blockTime);
+    const opacity = secondsLeft / 10;
+    return opacity;
+  };
+
+  const opacity = calculateOpacity();
 
   return (
     <div
@@ -12,6 +23,7 @@ export default function Block({ block }) {
         borderRadius: 12,
         borderStyle: "solid",
         width: 300,
+        opacity: opacity,
       }}
     >
       <p>Block #{block.height}</p>
