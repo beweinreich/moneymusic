@@ -93,7 +93,7 @@ export default function Music() {
   };
 
   useEffect(() => {
-    const queryParam = parseInt(window.location.search.slice(-1)) || 0;
+    const queryParam = parseInt(window.location.search.slice(-1)) || 1;
     setBlockIdx(queryParam);
   }, []);
 
