@@ -97,7 +97,7 @@ export default function Music() {
     setBlockIdx(queryParam);
   }, []);
 
-  /*                   Used for simulation                       */
+  /*                   End - Used for simulation                 */
   /***************************************************************/
 
   const updateBlockTime = () => {
@@ -162,7 +162,7 @@ export default function Music() {
       // we have time to ramp to the current blocks BPM
       const block = blocks[blockIdx];
       const newBpm = getBlockBpm(block);
-      const rampDuration = 3;
+      const rampDuration = 10;
 
       setBpm(newBpm);
       Tone.Transport.bpm.rampTo(newBpm, rampDuration);
