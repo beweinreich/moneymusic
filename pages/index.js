@@ -93,7 +93,7 @@ export default function Music() {
   };
 
   useEffect(() => {
-    const queryParam = parseInt(window.location.search.slice(-1)) || 1;
+    const queryParam = parseInt(window.location.search.slice(1)) || 1;
     setBlockIdx(queryParam);
   }, []);
 
@@ -178,7 +178,7 @@ export default function Music() {
     Tone.start();
 
     piano.current = setupInstrument(pianoConfig, -18, true, false);
-    violin.current = setupInstrument(violinConfig, -28, true, false);
+    violin.current = setupInstrument(violinConfig, -38, true, false);
     cello.current = setupInstrument(celloConfig, -28, true, true);
     drums.current = setupInstrument(drumConfig, -10, true, false);
     const wave = new Tone.Waveform();
